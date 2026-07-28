@@ -22,6 +22,24 @@ import type Sigma from 'sigma'
 /** 浮动半径相对节点自身半径的比例 */
 const AMPLITUDE = 0.55
 
+/**
+ * 浮动位移的绝对上限，按参考宽度的比例算。
+ *
+ * 幅度只按节点半径算是不够的：节点少时整张图的坐标跨度也小，同样的
+ * 绝对位移占比就大得多。实测四个节点的图里，位移达到画面高度的 0.7%
+ * ——四五个像素，在几乎空白的画布上就是明晃晃的抖动，而在密集的图里
+ * 根本注意不到。所以还要有个不随图规模变化的天花板。
+ */
+const MAX_DRIFT_RATIO = 0.0015
+
+/**
+ * 少于这么多节点就不浮动。
+ *
+ * 三五个点的图本来就该是静的：律动是为了让密密麻麻的知识网看起来
+ * 「还在互相牵动」，而几个孤零零的点晃来晃去只让人觉得画面不稳。
+ */
+const MIN_NODES_FOR_MOTION = 12
+
 /** 一个完整周期的毫秒数。慢一点更像呼吸，快了像抖动 */
 const PERIOD = 5200
 
@@ -41,12 +59,27 @@ interface Anchor {
 }
 
 export interface IdleMotion {
+  /** 彻底停下并回到基准位置。切换视图、销毁画布时用 */
   stop(): void
-  /** 拖拽等操作改了坐标，重新采一次基准，否则节点会被拉回旧位置 */
+  /**
+   * 就地暂停，不回弹。
+   *
+   * 拖拽开始时必须用这个而不是 stop：stop 会把所有节点瞬间拉回基准，
+   * 于是按下节点的那一刻整张图跳一下 —— 那正是「一拖就抖」的来源。
+   */
+  pause(): void
+  /** 拖拽等操作改了坐标，重新采基准并继续浮动 */
   resync(): void
 }
 
 export function startIdleMotion(graph: Graph, renderer: Sigma, unit: number): IdleMotion {
+  if (graph.order < MIN_NODES_FOR_MOTION) {
+    return { stop: () => undefined, pause: () => undefined, resync: () => undefined }
+  }
+
+  /** 图坐标下的位移上限。unit 是「一个参考像素等于多少图坐标」 */
+  const ceiling = unit * 900 * MAX_DRIFT_RATIO
+
   let anchors: Anchor[] = []
   let raf = 0
   let stopped = false
@@ -71,7 +104,7 @@ export function startIdleMotion(graph: Graph, renderer: Sigma, unit: number): Id
         phase,
         driftX: Math.cos(phase * 1.7),
         driftY: Math.sin(phase * 2.3),
-        radius: (Number(attrs.size) || 3) * unit * AMPLITUDE,
+        radius: Math.min((Number(attrs.size) || 3) * unit * AMPLITUDE, ceiling),
       })
       index++
     })
@@ -111,6 +144,24 @@ export function startIdleMotion(graph: Graph, renderer: Sigma, unit: number): Id
       }
       renderer.refresh({ skipIndexation: false })
     },
-    resync: sample,
+
+    pause() {
+      stopped = true
+      cancelAnimationFrame(raf)
+    },
+
+    /**
+     * 重新采基准并继续。
+     *
+     * 之前这里只是 `resync: sample` —— 采完基准就完了，而 stopped 还是
+     * true，循环再也起不来。结果是拖过一次之后整张图就彻底不动了。
+     */
+    resync() {
+      sample()
+      if (!stopped) return
+      stopped = false
+      last = 0
+      raf = requestAnimationFrame(tick)
+    },
   }
 }

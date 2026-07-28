@@ -253,7 +253,8 @@ export function GraphCanvas({
       onHover: (node) => onHoverRef.current(node),
       onGeometryChange: () => clusterLayer.invalidate(),
       // 拖拽和律动都在改坐标，同时跑会互相打架 —— 让律动先退场
-      onDragStart: () => idleRef.current?.stop(),
+      // pause 而非 stop：stop 会把节点拉回基准，按下的瞬间整张图会跳一下
+      onDragStart: () => idleRef.current?.pause(),
       onLayoutChanged: () => {
         persistLayout()
         // 拖过之后基准位置变了，律动得重新采样，否则节点会被拉回旧位置
