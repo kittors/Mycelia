@@ -101,8 +101,8 @@ function splitFrontMatter(source: string): { meta: string; body: string } {
   const meta = rows
     .map(
       ([key, value]) =>
-        `<div class="fm-row"><span class="fm-key">${escape(key)}</span>` +
-        `<span class="fm-value">${escape(value)}</span></div>`,
+        `<div class="fm-row"><span class="fm-key">${escapeHtml(key)}</span>` +
+        `<span class="fm-value">${escapeHtml(value)}</span></div>`,
     )
     .join('')
 
@@ -113,7 +113,7 @@ function splitFrontMatter(source: string): { meta: string; body: string } {
 }
 
 /** 属性值直接进 HTML，得先转义 —— 它随后还要过 DOMPurify，但不该指望下游兜底 */
-function escape(text: string): string {
+function escapeHtml(text: string): string {
   return text.replace(
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
