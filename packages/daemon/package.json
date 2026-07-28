@@ -1,0 +1,20 @@
+{
+  "name": "@mycelia/daemon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@mycelia/core": "workspace:*",
+    "@mycelia/ingest": "workspace:*",
+    "@mycelia/shared": "workspace:*",
+    "@mycelia/store": "workspace:*"
+  }
+}

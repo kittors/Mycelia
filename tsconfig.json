@@ -1,0 +1,38 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/shared"
+    },
+    {
+      "path": "./packages/integrations"
+    },
+    {
+      "path": "./packages/crypto"
+    },
+    {
+      "path": "./packages/store"
+    },
+    {
+      "path": "./packages/embed"
+    },
+    {
+      "path": "./packages/llm"
+    },
+    {
+      "path": "./packages/ingest"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/daemon"
+    },
+    {
+      "path": "./services/mcp"
+    },
+    {
+      "path": "./apps/cli"
+    }
+  ]
+}

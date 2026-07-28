@@ -1,0 +1,357 @@
+/**
+ * 全局基线。
+ *
+ * 这里只放三类东西：元素级的重置、无法用 utility 表达的交互细节、关键帧。
+ * 组件样式一律写在组件里 —— 上一版 2300 行全局 CSS 的教训是，
+ * 一旦允许在这里写组件选择器，它就会无限膨胀，最后没人敢删任何一行。
+ */
+
+/*
+ * 字体本地打包，不引 CDN：桌面应用可能离线，字体加载失败会退回系统字体，
+ * 整个界面的字距和字重跟着变一遍，比不用自定义字体还糟。
+ */
+@import "@fontsource-variable/inter";
+@import "./tokens.css";
+
+/**
+ * 元素级重置必须放进 @layer base。
+ *
+ * 无层规则的优先级高于**所有** @layer 里的规则（CSS 层叠规范），
+ * 所以裸写 `button { color: inherit }` 会把 Tailwind utilities 层里的
+ * `.text-accent-fg` 整个压掉 —— 表现是主按钮白底白字，文字完全看不见。
+ * 同理 `* { border-color }` 会压过 `border-danger` 这类颜色 utility。
+ *
+ * 进了 base 层之后，utilities 才能正常覆盖它们。
+ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--canvas);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* 桌面应用不该有网页的文本选中行为，可选中的区域各自开启 */
+    user-select: none;
+    cursor: default;
+    overflow: hidden;
+  }
+
+  input,
+  textarea,
+  [data-selectable] {
+    user-select: text;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /**
+   * 可点击的东西一律是手型。
+   *
+   * 之前跟着原生 macOS 应用用箭头，但这套界面里大量控件（卡片、图例、
+   * 列表行）本身没有按钮外观，只靠指针变化告诉用户「这儿能点」。
+   * 统一成手型比模仿系统惯例更重要。
+   *
+   * 不含 label —— Field 用 label 包住整行，加了会让说明文字也变手型。
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="tab"],
+  [role="combobox"]:not(:disabled),
+  a[href],
+  summary,
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+/* 数字用等宽字形，列表滚动时不会左右抖动 */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* macOS 无边框窗口的拖拽区 */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/**
+ * 焦点环。
+ *
+ * 必须放进 @layer base —— 无层规则会压过 utilities 层里的 `focus:outline-none`，
+ * 结果是控件自己定义的柔和焦点样式全被这道 2px 粗描边盖掉，
+ * 表现为「输入框一点就套上一圈突兀的黑边」。
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  /**
+   * 表单控件例外。
+   *
+   * 浏览器对文本输入框在**鼠标点击**时也会匹配 :focus-visible（因为输入态
+   * 必须可见），所以那道为键盘导航准备的粗描边会在每次点击时出现。
+   * 这里换成边框变色 + 一圈极淡的光晕：焦点依然清楚，但不喧宾夺主。
+   */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="combobox"]:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
+  }
+
+  /* 光晕淡入而不是硬切。控件自身也声明了 transition，这里兜住漏网的 */
+  input,
+  textarea,
+  select,
+  [role="combobox"] {
+    transition:
+      border-color 0.15s var(--ease-out),
+      box-shadow 0.15s var(--ease-out);
+  }
+}
+
+::selection {
+  background: var(--selected);
+}
+
+/* ── 滚动条：细、无按钮、悬停才明显 ── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── 动效 ── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/**
+ * 浮层的进出。
+ *
+ * 从锚点方向轻微升起并放大，关闭时原路缩回。位移方向由 --pop-offset 给，
+ * 向下展开的菜单要从上边长出（负偏移），向上展开的反之 ——
+ * 同一组关键帧因此能服务四种摆放，不必写四份。
+ *
+ * 用 animation 而不是 transition + JS 切类：后者依赖 rAF 送出第一帧，
+ * 而窗口失焦时 rAF 会被暂停，浮层就卡在透明状态出不来。
+ */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(var(--pop-offset, 4px));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(calc(var(--pop-offset, 4px) * 0.5));
+  }
+}
+
+@keyframes slide-from-right {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+/* 侧栏退场。只动 transform 不动宽度 —— 抽掉宽度会让旁边的画布跟着重排抖一下 */
+@keyframes slide-to-right {
+  to {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/**
+ * 图钉钉下去 / 拔出来。
+ *
+ * 缩放带一点回弹，再配一点旋转 —— 单纯换个填充色在 13px 的图标上
+ * 几乎察觉不到，得让它「动一下」才知道自己刚才点中了。
+ */
+@keyframes pin-toggle {
+  0% {
+    transform: scale(0.5) rotate(-24deg);
+  }
+  60% {
+    transform: scale(1.15) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/**
+ * 骨架的呼吸。
+ *
+ * 改成整体明暗起伏，而不是原来的 shimmer 扫光 —— 扫光需要一条比底色亮的
+ * 高光带，在浅色主题下那条带子怎么调都显脏，而且每个块各扫各的，
+ * 一片灰条各自闪烁，比不放动画还乱。
+ *
+ * 同一个动画名 + 同样的时长，浏览器会让所有骨架同步起伏，
+ * 看上去是「内容正在浮现」而不是「一堆东西在抽搐」。
+ */
+@keyframes skeleton-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.18s var(--ease-out);
+}
+.animate-rise {
+  animation: rise 0.22s var(--ease-out);
+}
+.animate-pop {
+  animation: pop 0.16s var(--ease-out);
+}
+
+/* 浮层进出。forwards 保住末态，否则退场播完会闪回不透明再被卸载 */
+.animate-overlay-in {
+  animation: overlay-in 0.15s var(--ease-spring) forwards;
+}
+.animate-overlay-out {
+  animation: overlay-out 0.13s var(--ease-in-out) forwards;
+}
+.animate-slide-in {
+  animation: slide-from-right 0.2s var(--ease-out);
+}
+.animate-slide-out {
+  animation: slide-to-right 0.18s var(--ease-in-out) forwards;
+}
+.animate-spin-slow {
+  animation: spin 1.1s linear infinite;
+}
+.animate-pin-toggle {
+  animation: pin-toggle 0.32s var(--ease-spring);
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.8s var(--ease-in-out) infinite;
+}
+
+/**
+ * 骨架屏。
+ *
+ * 占位块本身是纯色的，靠透明度呼吸表示「在加载」。
+ * 颜色比 sunken 再淡一档 —— 骨架是背景噪音，不该比真实内容还抢眼。
+ */
+.skeleton {
+  background: var(--hover);
+  border-radius: var(--radius-sm);
+  animation: skeleton-breathe 1.6s var(--ease-in-out) infinite;
+}
+
+/* 列表项逐个入场。延迟由内联 style 传入，超过 10 项就不该再错开了 */
+.stagger {
+  animation: rise 0.24s var(--ease-out) backwards;
+}
+
+/**
+ * 无障碍：系统开了「减弱动态效果」就把动画全部停掉。
+ * 这里必须用 !important —— 它要覆盖组件上的内联 style 与 utility 类，
+ * 而用户的无障碍设置优先级高于任何组件自己的意愿。
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: 无障碍覆盖必须压过内联样式 */
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: 无障碍覆盖必须压过内联样式 */
+  }
+}

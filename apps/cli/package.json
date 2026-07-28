@@ -1,0 +1,24 @@
+{
+  "name": "@mycelia/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/bin.js",
+  "bin": {
+    "myc": "./dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/bin.js"
+  },
+  "dependencies": {
+    "@mycelia/core": "workspace:*",
+    "@mycelia/crypto": "workspace:*",
+    "@mycelia/daemon": "workspace:*",
+    "@mycelia/mcp-server": "workspace:*",
+    "@mycelia/shared": "workspace:*",
+    "@mycelia/store": "workspace:*",
+    "commander": "^13.1.0",
+    "@mycelia/integrations": "workspace:*"
+  }
+}

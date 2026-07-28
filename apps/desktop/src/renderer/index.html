@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data:; connect-src 'self' file:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 深浅双主题，交给 prefers-color-scheme 决定滚动条等原生控件的配色 -->
+    <meta name="color-scheme" content="light dark" />
+    <title>Mycelia</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

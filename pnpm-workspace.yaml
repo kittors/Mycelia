@@ -1,0 +1,14 @@
+packages:
+  - packages/*
+  - apps/*
+  - services/*
+
+# 只允许这些包跑安装脚本（原生模块编译）。
+# onnxruntime-node / sharp 属于可选的本地嵌入模型链路，默认不安装。
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  electron: true
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false

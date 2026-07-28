@@ -1,0 +1,177 @@
+/**
+ * 设计令牌。
+ *
+ * 风格基准是 Codex Desktop：中性灰阶、几乎不用彩色、克制的密度。
+ * 界面本身要退到背景里去，让内容（记忆、文档、图谱）成为唯一的视觉重点。
+ *
+ * 颜色分两层：
+ *   1. 这里的 CSS 变量按主题切换（:root 浅色，[data-theme='dark'] 深色）
+ *   2. @theme inline 把它们暴露成 Tailwind utility（bg-surface、text-muted…）
+ *
+ * 组件里只用 utility，不直接写颜色值 —— 换主题时不需要动任何组件。
+ */
+
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+
+  /* 层次：canvas 最底，raised 最上。三层足够表达深度，不需要阴影堆叠 */
+  --canvas: #ffffff;
+  --surface: #fafafa;
+  --raised: #ffffff;
+  --overlay: #ffffff;
+  --sunken: #f4f4f4;
+
+  --border: #e8e8e8;
+  --border-strong: #d6d6d6;
+
+  --text: #0d0d0d;
+  --text-muted: #6b6b6b;
+  --text-faint: #9a9a9a;
+
+  /* 强调色是「反色」而不是品牌色：浅色主题下是黑，深色主题下是白 */
+  --accent: #0d0d0d;
+  --accent-fg: #ffffff;
+  --accent-hover: #262626;
+
+  /* 交互态：hover/active 用极轻的中性叠加，不引入色相 */
+  --hover: rgb(0 0 0 / 0.04);
+  --active: rgb(0 0 0 / 0.07);
+  --selected: rgb(0 0 0 / 0.055);
+
+  --success: #2f7d5b;
+  --warning: #9a6a12;
+  --danger: #b8332c;
+  --info: #2f6b9a;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.14), 0 2px 8px rgb(0 0 0 / 0.06);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0a0a0a;
+  --surface: #121212;
+  --raised: #1a1a1a;
+  --overlay: #1c1c1c;
+  --sunken: #0f0f0f;
+
+  --border: #262626;
+  --border-strong: #383838;
+
+  --text: #f2f2f2;
+  --text-muted: #a0a0a0;
+  --text-faint: #6b6b6b;
+
+  --accent: #f2f2f2;
+  --accent-fg: #0a0a0a;
+  --accent-hover: #d8d8d8;
+
+  --hover: rgb(255 255 255 / 0.055);
+  --active: rgb(255 255 255 / 0.09);
+  --selected: rgb(255 255 255 / 0.07);
+
+  --success: #4fae82;
+  --warning: #d0a047;
+  --danger: #e0645c;
+  --info: #6aa9d8;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.35);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-overlay: var(--overlay);
+  --color-sunken: var(--sunken);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-hover: var(--accent-hover);
+
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-selected: var(--selected);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  /**
+   * 西文与数字用 Inter，中文交给系统。
+   *
+   * 字体栈是按序回退的：Inter 没有汉字字形，中文自然落到后面的苹方 ——
+   * 这正是想要的分工。界面里到处是统计数字（记忆条数、置信度、时间），
+   * Inter 的等宽数字对齐比系统字体整齐得多，成列的数字不会左右跳动。
+   *
+   * 中文不换。macOS 上没有比苹方更合适的，换成任何需要下载的中文字体，
+   * 代价是几 MB 的体积和首次渲染的字形闪烁，换来的差别却微乎其微。
+   */
+  --font-sans:
+    "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  /* 动效：短、只动 transform/opacity。超过 240ms 的界面反馈会显得迟钝 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* 末端微微冲过头再落回，浮层弹出时的「有质量感」全靠这点回弹 */
+  --ease-spring: cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+/**
+ * 记忆类型色。
+ *
+ * 刻意压低饱和度 —— 它们的作用是区分，不是吸引注意。
+ * 十种类型如果都用高饱和色，列表会变成调色板。
+ */
+:root {
+  --kind-fact: #5b83b4;
+  --kind-preference: #9878b4;
+  --kind-decision: #b48a4a;
+  --kind-howto: #4a987a;
+  --kind-credential: #b46060;
+  --kind-project: #7a7ab4;
+  --kind-learning: #6f9e53;
+  --kind-issue: #b47458;
+  --kind-insight: #4f9890;
+  --kind-entity: #7a7a7a;
+}
+
+[data-theme="dark"] {
+  --kind-fact: #7ba3d4;
+  --kind-preference: #b498d4;
+  --kind-decision: #d4aa6a;
+  --kind-howto: #6ab89a;
+  --kind-credential: #d48080;
+  --kind-project: #9a9ad4;
+  --kind-learning: #8fbe73;
+  --kind-issue: #d49478;
+  --kind-insight: #6fb8b0;
+  --kind-entity: #9a9a9a;
+}

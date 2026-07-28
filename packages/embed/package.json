@@ -1,0 +1,19 @@
+{
+  "name": "@mycelia/embed",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "@mycelia/shared": "workspace:*"
+  },
+  "//": "@huggingface/transformers 刻意不声明为依赖（含 onnxruntime 约 350MB）。用户在设置页启用本地嵌入模型时按需安装，代码通过动态 import 探测其存在。"
+}

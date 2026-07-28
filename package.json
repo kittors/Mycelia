@@ -1,0 +1,32 @@
+{
+  "name": "mycelia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The underground network that connects every agent's knowledge — long-term memory, knowledge graph and RAG for coding agents.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@11.13.0",
+  "scripts": {
+    "build": "tsc -b",
+    "build:clean": "tsc -b --clean && tsc -b",
+    "watch": "tsc -b --watch",
+    "typecheck": "tsc -b --noEmit false --dry 2>/dev/null || tsc -b",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "node --test --experimental-test-module-mocks \"packages/*/dist/**/*.test.js\"",
+    "myc": "node apps/cli/dist/bin.js",
+    "desktop:dev": "pnpm --filter @mycelia/desktop dev",
+    "desktop:build": "pnpm --filter @mycelia/desktop build",
+    "clean": "rm -rf packages/*/dist apps/*/dist services/*/dist **/*.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.14",
+    "@types/node": "^22.15.3",
+    "typescript": "^5.7.3"
+  }
+}

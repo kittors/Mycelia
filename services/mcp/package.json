@@ -1,0 +1,25 @@
+{
+  "name": "@mycelia/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "mycelia-mcp": "./dist/bin.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/bin.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "@mycelia/core": "workspace:*",
+    "@mycelia/shared": "workspace:*",
+    "@mycelia/store": "workspace:*",
+    "zod": "^3.24.1"
+  }
+}

@@ -1,0 +1,55 @@
+import type { LlmProviderConfig } from '@mycelia/shared'
+import { resolveApiKey } from '@mycelia/shared'
+import {
+  AnthropicProvider,
+  NoopProvider,
+  OllamaProvider,
+  OpenAIProvider,
+  OpenAIResponsesProvider,
+} from './providers/index.js'
+import type { ChatOptions, LlmProvider } from './types.js'
+
+export function createLlm(config: LlmProviderConfig): LlmProvider {
+  const apiKey = resolveApiKey(config)
+  const shared = {
+    baseUrl: config.baseUrl,
+    apiKey,
+    model: config.model,
+    maxTokens: config.maxTokens,
+    timeoutMs: config.timeoutMs,
+  }
+
+  switch (config.provider) {
+    case 'anthropic':
+      // 没有 key 就别装作能用，直接返回 Noop 让上层走规则模式
+      if (!apiKey) return new NoopProvider()
+      return new AnthropicProvider(shared)
+    case 'openai':
+      if (!apiKey && !config.baseUrl) return new NoopProvider()
+      return new OpenAIProvider(shared)
+    case 'openai-responses':
+      if (!apiKey && !config.baseUrl) return new NoopProvider()
+      return new OpenAIResponsesProvider(shared)
+    case 'ollama':
+      return new OllamaProvider({
+        baseUrl: config.baseUrl,
+        model: config.model,
+        timeoutMs: config.timeoutMs,
+      })
+    default:
+      return new NoopProvider()
+  }
+}
+
+/**
+ * 轻量任务的调用选项。
+ *
+ * 文档索引会为每个块生成一句定位摘要 —— 一个中等规模的笔记目录就是上千次调用。
+ * 配了 fastModel 就走小模型，没配则复用主模型，调用方不必关心差异。
+ */
+export function fastOptions(config: LlmProviderConfig, opts: ChatOptions = {}): ChatOptions {
+  return { ...opts, model: opts.model ?? config.fastModel ?? config.model }
+}
+
+export * from './types.js'
+export { AnthropicProvider, NoopProvider, OllamaProvider, OpenAIProvider, OpenAIResponsesProvider }

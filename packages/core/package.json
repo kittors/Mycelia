@@ -1,0 +1,25 @@
+{
+  "name": "@mycelia/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@mycelia/crypto": "workspace:*",
+    "@mycelia/embed": "workspace:*",
+    "@mycelia/ingest": "workspace:*",
+    "@mycelia/llm": "workspace:*",
+    "@mycelia/shared": "workspace:*",
+    "@mycelia/store": "workspace:*",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "graphology-types": "^0.24.8"
+  }
+}
