@@ -11,7 +11,14 @@
 type Point = { x: number; y: number }
 
 /** 轮廓离最外圈节点的距离 */
-const PADDING = 26
+/**
+ * 轮廓离节点中心的基础距离。
+ *
+ * 这只是「留白」那一部分 —— 节点自身的半径要另外加上去，见 paintHulls。
+ * 写死一个总距离是不行的：放大时节点会跟着变大，圈却纹丝不动，
+ * 节点就一个个探出圈外了。
+ */
+const PADDING = 18
 /** 角上的圆角半径。太小会显得像多边形围栏，太大则丢掉簇的形状 */
 const CORNER = 18
 
@@ -97,6 +104,8 @@ export interface HullGroup {
   points: Point[]
   color: string
   label?: string
+  /** 轮廓离节点中心的距离（屏幕像素）。不传则用基础留白，节点会探出圈外 */
+  padding?: number
 }
 
 /**
@@ -124,17 +133,18 @@ export function paintHulls(
     if (group.points.length === 1) {
       const only = group.points[0] as Point
       ctx.beginPath()
-      ctx.arc(only.x, only.y, PADDING, 0, Math.PI * 2)
+      ctx.arc(only.x, only.y, group.padding ?? PADDING, 0, Math.PI * 2)
     } else if (group.points.length === 2) {
       // 两点连成胶囊：把线段两端各画一个半圆
       const [a, b] = group.points as [Point, Point]
       const angle = Math.atan2(b.y - a.y, b.x - a.x)
       ctx.beginPath()
-      ctx.arc(a.x, a.y, PADDING, angle + Math.PI / 2, angle - Math.PI / 2)
-      ctx.arc(b.x, b.y, PADDING, angle - Math.PI / 2, angle + Math.PI / 2)
+      const pad = group.padding ?? PADDING
+      ctx.arc(a.x, a.y, pad, angle + Math.PI / 2, angle - Math.PI / 2)
+      ctx.arc(b.x, b.y, pad, angle - Math.PI / 2, angle + Math.PI / 2)
       ctx.closePath()
     } else {
-      traceRounded(ctx, inflate(convexHull(group.points), PADDING), CORNER)
+      traceRounded(ctx, inflate(convexHull(group.points), group.padding ?? PADDING), CORNER)
     }
 
     ctx.fill()

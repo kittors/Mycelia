@@ -14,6 +14,7 @@ import forceAtlas2 from 'graphology-layout-forceatlas2'
 import type Sigma from 'sigma'
 import { fitToNodes, type Inset } from './camera.js'
 import { declusterNodes } from './decluster.js'
+import { reelInOutliers } from './reel-in.js'
 import type { ScaleProfile } from './scale.js'
 
 export interface LayoutHandle {
@@ -187,6 +188,12 @@ export function runLayout(
      *   2. 重建索引 —— 上一步在改坐标，索引必须建在最终坐标上，
      *      否则鼠标点击会打偏。
      */
+    /**
+     * 先把飞远的收回来，再做防重叠。
+     *
+     * 顺序要紧：归置会改坐标，放在防重叠之后就可能把刚分开的点又推重叠了。
+     */
+    reelInOutliers(graph)
     declusterNodes(graph, { iterations: profile.declusterPasses })
     renderer.refresh({ skipIndexation: false })
     formed = true

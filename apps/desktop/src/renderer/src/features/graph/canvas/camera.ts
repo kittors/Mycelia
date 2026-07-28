@@ -28,19 +28,40 @@ const NO_INSET: Inset = { right: 0 }
  * 但余量要随规模收：节点一多标签本来就不画了（见 scale.ts 的 labelThreshold），
  * 还留着一大圈空白只会让图缩在画面中间一小团。
  */
+/**
+ * 取景时留多少边距。
+ *
+ * 这个值就是最终的 ratio —— 因为 Sigma 的 framedGraph 坐标是按这批节点
+ * 自己的包围盒归一化的：无论四个点还是四千个点，最远两点的跨度永远是 1。
+ * 所以「span × padding」里的 span 恒等于 1，真正决定缩放的只有这里。
+ *
+ * 1.0 表示节点正好铺满视口（最外圈的标签会被切掉），1.2 表示四周各留一成。
+ * 之前少节点给的是 1.7 —— 留了七成白边，四个点缩成中间一小团，
+ * 正是「节点少反而不放大」的原因。
+ *
+ * 节点多时反而可以留得更少：那时画面本来就满，边距的意义只是别让标签贴边。
+ */
 function paddingFor(nodeCount: number): number {
-  if (nodeCount <= 60) return 1.7
-  if (nodeCount <= 300) return 1.45
-  return 1.12
+  if (nodeCount <= 12) return 1.32
+  if (nodeCount <= 60) return 1.24
+  if (nodeCount <= 300) return 1.16
+  return 1.1
 }
 
 /**
- * 镜头最远只拉到这么近。
+ * 节点画到屏幕上最多这么大（半径，像素）。
  *
- * 图上只有两三个节点时，它们的包围盒很小，按比例算出的 ratio 会把镜头
- * 怼到脸上，几个点各占半屏。稀疏的图本来就该看着稀疏。
+ * 之前这里卡的是 ratio 下限（0.5），方向就错了：节点少的时候它们的包围盒
+ * 只有整图的百分之几，需要的 ratio 在 0.05 量级，被 0.5 拦住的结果是
+ * 四个点缩成中间一小团、周围全是空白 —— 正是「不会放大」的原因。
+ *
+ * 真正该约束的不是缩放比例，而是缩放的**后果**：镜头再近，单个节点也不该
+ * 大到占掉半屏。所以下限由节点尺寸反推，而不是拍一个固定值。
  */
-const MIN_RATIO = 0.5
+const MAX_NODE_RADIUS_PX = 34
+
+/** 兜底：包围盒退化成一个点（所有节点重叠）时不能除以零 */
+const MIN_RATIO = 0.02
 
 /** 判定「已经看得见」时留的边距，太小会让节点贴着边也算数 */
 const IN_VIEW_MARGIN = 48
@@ -63,7 +84,33 @@ export function fitToNodes(renderer: Sigma, nodes: readonly string[], inset: Ins
   const shrink = width / visibleWidth
 
   const span = Math.max(target.maxX - target.minX, target.maxY - target.minY)
-  const ratio = Math.min(2, Math.max(MIN_RATIO, span * paddingFor(nodes.length) * shrink))
+  const wanted = span * paddingFor(nodes.length) * shrink
+
+  /**
+   * 从「节点不许超过多大」反推 ratio 的下限。
+   *
+   * getNodeDisplayData().size 是当前 ratio 下的屏幕半径，而屏幕半径与
+   * ratio 成反比，于是 size × ratio 是个不随缩放变化的常量 —— 拿它除以
+   * 允许的最大半径，就是能放到多近。
+   */
+  const camera = renderer.getCamera()
+  const sample = nodes[0] ? renderer.getNodeDisplayData(nodes[0]) : undefined
+  const invariant = (sample?.size ?? 0) * camera.ratio
+  const floor = invariant > 0 ? Math.max(MIN_RATIO, invariant / MAX_NODE_RADIUS_PX) : MIN_RATIO
+
+  const ratio = Math.min(2, Math.max(floor, wanted))
+  console.log(
+    '[fit]',
+    JSON.stringify({
+      span,
+      wanted,
+      floor,
+      ratio,
+      size: sample?.size,
+      camRatio: camera.ratio,
+      n: nodes.length,
+    }),
+  )
 
   const center = {
     x: (target.minX + target.maxX) / 2,

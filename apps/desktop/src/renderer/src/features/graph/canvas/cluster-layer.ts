@@ -31,7 +31,12 @@ interface CachedHull {
   cluster: number
   /** 已经是凸包顶点，屏幕坐标只需对这几个点做变换，而不是全部节点 */
   points: Array<{ x: number; y: number }>
+  /** 簇里随便一个节点，用来在每帧问出当前缩放下的节点半径 */
+  sample: string
 }
+
+/** 轮廓与节点边缘之间的留白（屏幕像素）。节点半径另算 */
+const HULL_GAP = 14
 
 export function createClusterLayer(
   renderer: Sigma,
@@ -60,7 +65,7 @@ export function createClusterLayer(
    * 每帧只需把几个顶点投影到屏幕，与节点总数无关。
    */
   const rebuild = (): CachedHull[] => {
-    const byCluster = new Map<number, Array<{ x: number; y: number }>>()
+    const byCluster = new Map<number, { points: Array<{ x: number; y: number }>; sample: string }>()
     graph.forEachNode((node, attrs) => {
       const cluster = Number(attrs.cluster)
       if (!Number.isFinite(cluster)) return
@@ -73,15 +78,16 @@ export function createClusterLayer(
       if (!prominence.ids.has(cluster)) return
       const display = renderer.getNodeDisplayData(node)
       if (!display) return
-      const points = byCluster.get(cluster)
-      if (points) points.push({ x: display.x, y: display.y })
-      else byCluster.set(cluster, [{ x: display.x, y: display.y }])
+      const entry = byCluster.get(cluster)
+      if (entry) entry.points.push({ x: display.x, y: display.y })
+      else byCluster.set(cluster, { points: [{ x: display.x, y: display.y }], sample: node })
     })
 
-    return [...byCluster.entries()].map(([cluster, points]) => ({
+    return [...byCluster.entries()].map(([cluster, entry]) => ({
       cluster,
       // 三点以上先降成凸包，后面每帧只投影这几个点
-      points: points.length > 3 ? convexHull(points) : points,
+      points: entry.points.length > 3 ? convexHull(entry.points) : entry.points,
+      sample: entry.sample,
     }))
   }
 
@@ -104,6 +110,13 @@ export function createClusterLayer(
     const groups: HullGroup[] = cache.map((hull) => ({
       points: hull.points.map((point) => renderer.framedGraphToViewport(point)),
       color: clusterColor(prominence.colorIndex.get(hull.cluster) ?? 0, dark),
+      /**
+       * 每帧问一次「现在这个缩放下，节点画出来有多大」。
+       *
+       * 节点半径随相机缩放变化，而轮廓是拿屏幕坐标画的 —— 用固定值的话，
+       * 一放大节点就探出圈外。半径要现取，不能缓存。
+       */
+      padding: HULL_GAP + (renderer.getNodeDisplayData(hull.sample)?.size ?? 0),
     }))
 
     paintHulls(ctx, groups, dpr)
