@@ -107,10 +107,19 @@ jobs:
         shell: bash
         run: node scripts/set-version.mjs "${GITHUB_REF_NAME#v}"
 
-      # rpm 打包需要 rpmbuild，ubuntu runner 默认没装
       - name: Linux 打包依赖
         if: matrix.platform == '--linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          # rpmbuild 在 runner 上不是预装的
+          sudo apt-get update && sudo apt-get install -y rpm
+          # electron-builder 自带的 fpm 只有 x86 版本，在 arm64 上直接
+          # Exec format error。装一份系统的顶上
+          if [[ "${{ matrix.arch }}" == "--arm64" ]]; then
+            sudo apt-get install -y ruby ruby-dev build-essential
+            sudo gem install fpm --no-document
+          fi
 
       - name: 构建工作区
         run: pnpm build
@@ -126,6 +135,8 @@ jobs:
           # 产物走 ad-hoc 签名（见 build.mac.identity），首次打开需要用户放行，
           # README 里写了怎么做
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # 只有 arm64 需要走系统的 fpm，x64 用自带的那份就好
+          USE_SYSTEM_FPM: ${{ matrix.arch == '--arm64' && matrix.platform == '--linux' && 'true' || '' }}
         run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.platform }} ${{ matrix.arch }} --publish never
 
       - name: 确认产物存在且命名正确
