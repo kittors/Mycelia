@@ -71,7 +71,12 @@ const set = (key, value) => {
 }
 
 // 已经改过就直接走 —— 重签整个 bundle 要好几秒，不该每次 pnpm dev 都付这个代价
-if (!restore && read('CFBundleName') === NAME && read('CFBundleExecutable') === NAME) {
+if (
+  !restore &&
+  read('CFBundleName') === NAME &&
+  read('CFBundleExecutable') === NAME &&
+  read('CFBundleIdentifier') === 'dev.mycelia.app'
+) {
   process.exit(0)
 }
 
@@ -84,6 +89,7 @@ if (restore) {
     renameSync(renamed, original)
   }
   set('CFBundleExecutable', 'Electron')
+  set('CFBundleIdentifier', 'com.github.Electron')
   const pathFile = resolve(appPath, '..', '..', 'path.txt')
   if (existsSync(pathFile)) {
     writeFileSync(pathFile, `Electron.app/Contents/MacOS/Electron`)
@@ -99,6 +105,14 @@ if (restore) {
 
 set('CFBundleName', NAME)
 set('CFBundleDisplayName', NAME)
+/**
+ * bundle id 也要换。
+ *
+ * 留着 com.github.Electron 的话，Dock 会按这个 id 命中系统里那条早就存在的
+ * 「Electron」记录，于是图标是我们的、名字却还是 Electron。跟打包产物用
+ * 同一个 id，顺带让开发期的权限申请、单例锁都跟正式版一致。
+ */
+set('CFBundleIdentifier', 'dev.mycelia.app')
 
 /**
  * 可执行文件也要改名。
@@ -147,7 +161,22 @@ try {
   // 没有 codesign（少见）就算了，多数情况下 ad-hoc 签名不是硬性要求
 }
 
-// 图标缓存不刷新的话，Dock 上还会是旧的
+/**
+ * 让 LaunchServices 重读这个 bundle。
+ *
+ * 不刷新的话它会继续用缓存里那条旧记录 —— 改完 Info.plist、Dock 上
+ * 依旧显示 Electron，就是这个原因。
+ */
+try {
+  execFileSync(
+    '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister',
+    ['-f', appPath],
+    { stdio: 'ignore' },
+  )
+} catch {
+  /* 刷不动就算了，重启 Dock 也能达到同样效果 */
+}
+
 try {
   execFileSync('touch', [appPath])
 } catch {
