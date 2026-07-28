@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+# 同一分支上后推的提交作废先前还在跑的：PR 阶段没人关心三次提交前的结果，
+# 但 main 上每一次构建都对应一个可能被发布的状态，不能取消
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # 这个模型权重包有几百兆，CI 里用不到它，装了只会让每个 job 多等好几分钟
+  TRANSFORMERS_OFFLINE: "1"
+
+jobs:
+  # 只跑受影响的部分。改一行 README 不该触发三个平台的打包
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'packages/**'
+              - 'apps/**'
+              - 'services/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'tsconfig*.json'
+              - 'biome.json'
+              - '.github/workflows/ci.yml'
+            desktop:
+              - 'apps/desktop/**'
+              - 'packages/**'
+              - '.github/workflows/ci.yml'
+
+  quality:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: 代码风格与静态检查
+        run: pnpm lint
+
+      - name: 类型检查
+        run: pnpm build
+
+      # 渲染进程有自己的 tsconfig（DOM 类型、JSX），根 tsc -b 覆盖不到
+      - name: 渲染进程类型检查
+        working-directory: apps/desktop
+        run: pnpm typecheck:web
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    name: test (${{ matrix.os }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      # 测试跑在 Node 上，用的是 Node ABI 的原生模块。
+      # 打包那边需要的是 Electron ABI —— 两者不能共存，所以严格分开在不同 job
+      - name: 构建
+        run: pnpm build
+
+      - name: 单元测试
+        # Windows runner 默认是 pwsh，而测试脚本里的 glob 要交给 shell 展开
+        shell: bash
+        run: pnpm test
+
+  # 打包能不能过，只有真打一次才知道。这一步不发布，纯粹是防止
+  # 「代码全绿、一发版本就挂」—— 那种问题往往出在原生模块和 asar 边界上
+  package-smoke:
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            flag: --mac
+          - os: ubuntu-latest
+            flag: --linux
+          - os: windows-latest
+            flag: --win
+    runs-on: ${{ matrix.os }}
+    name: package-smoke (${{ matrix.os }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: 构建工作区
+        run: pnpm build
+
+      - name: 为 Electron 重建原生模块
+        working-directory: apps/desktop
+        run: pnpm rebuild
+
+      - name: 打包
+        working-directory: apps/desktop
+        env:
+          # 只验证能不能打出来，不上传任何东西
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.flag }} --publish never
+
+      - name: 确认产物存在且命名正确
+        shell: bash
+        run: node scripts/verify-artifacts.mjs
+
+      - name: 失败时留下构建日志
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-smoke-${{ matrix.os }}
+          path: |
+            apps/desktop/release/builder-*.yml
+            apps/desktop/release/*.log
+          if-no-files-found: ignore
+          retention-days: 7

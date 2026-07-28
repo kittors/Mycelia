@@ -13,7 +13,12 @@
     "package:win": "electron-vite build && electron-builder --win",
     "package:linux": "electron-vite build && electron-builder --linux",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "predev": "pnpm rebuild"
+    "predev": "pnpm rebuild && node ../../scripts/dev-app-identity.mjs",
+    "prepackage": "node ../../scripts/dev-app-identity.mjs --restore",
+    "prepackage:mac": "node ../../scripts/dev-app-identity.mjs --restore",
+    "prepackage:win": "node ../../scripts/dev-app-identity.mjs --restore",
+    "prepackage:linux": "node ../../scripts/dev-app-identity.mjs --restore",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.1",
@@ -76,34 +81,53 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
+        "dmg",
+        "zip"
       ],
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "CFBundleName": "Mycelia",
+        "CFBundleDisplayName": "Mycelia",
+        "CFBundleExecutable": "Mycelia"
+      },
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "identity": null
     },
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
+        "nsis",
+        "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "executableName": "Mycelia",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage",
-        "deb"
+        "deb",
+        "rpm"
       ],
       "category": "Utility",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "executableName": "mycelia",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "Mycelia",
+          "Comment": "连接所有 agent 知识的地下菌丝网络",
+          "Categories": "Utility;Development;"
+        }
+      }
+    },
+    "nsis": {
+      "shortcutName": "Mycelia",
+      "uninstallDisplayName": "Mycelia",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
     }
   },
   "description": "连接所有 agent 知识的地下菌丝网络",

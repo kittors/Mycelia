@@ -8,6 +8,8 @@
 
 给 AI coding agent 的长期记忆层 —— 本地优先，跨工具共享。
 
+[![CI](https://img.shields.io/github/actions/workflow/status/kittors/Mycelia/ci.yml?branch=main&style=flat-square&label=CI&color=000)](https://github.com/kittors/Mycelia/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kittors/Mycelia?style=flat-square&color=000)](https://github.com/kittors/Mycelia/releases)
 [![License](https://img.shields.io/badge/license-MIT-000?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-000?style=flat-square)](#安装)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-000?style=flat-square)](https://modelcontextprotocol.io)
@@ -75,6 +77,26 @@ AES-256-GCM 加密，密钥经系统钥匙串封装。写入时自动识别 API 
 
 ## 安装
 
+到 [Releases](https://github.com/kittors/Mycelia/releases) 下载对应平台的包：
+
+| 平台 | 下载 |
+| --- | --- |
+| macOS | `.dmg`（Apple Silicon 选 arm64，Intel 选 x64） |
+| Windows | `.exe` 安装包，或 `-portable.exe` 免安装版 |
+| Linux | `.AppImage` 免安装，或 `.deb` / `.rpm` |
+
+### macOS 首次打开
+
+应用没有花钱买 Apple 的开发者签名，Gatekeeper 会拦一下，提示「已损坏」或「无法验证开发者」。这不是应用真的有问题——所有未签名的开源 macOS 应用都是这个待遇。放行一次即可：
+
+```bash
+xattr -cr /Applications/Mycelia.app
+```
+
+或者在访达里右键点应用 →「打开」→ 再点一次「打开」。
+
+### 从源码运行
+
 需要 Node.js 20+ 和 pnpm。
 
 ```bash
@@ -85,7 +107,7 @@ pnpm build
 pnpm desktop:dev
 ```
 
-打包桌面应用：
+自己打包：
 
 ```bash
 pnpm --filter @mycelia/desktop package:mac    # 或 package:win / package:linux

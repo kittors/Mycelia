@@ -1,6 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "**",
@@ -8,7 +12,9 @@
       "!**/out",
       "!**/node_modules",
       "!**/*.tsbuildinfo",
-      "!**/pnpm-lock.yaml"
+      "!**/pnpm-lock.yaml",
+      "!**/build/*.svg",
+      "!**/release"
     ]
   },
   "formatter": {
@@ -47,9 +53,13 @@
     }
   },
   "json": {
-    "formatter": { "enabled": true }
+    "formatter": {
+      "enabled": true
+    }
   },
   "css": {
-    "parser": { "tailwindDirectives": true }
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }

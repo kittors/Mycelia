@@ -1,0 +1,22 @@
+name: 安装依赖
+description: pnpm + Node + 依赖缓存。三个 workflow 都要这一段，抽出来免得改一处漏两处
+
+runs:
+  using: composite
+  steps:
+    - name: 安装 pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: 安装 Node
+      uses: actions/setup-node@v4
+      with:
+        # 跟 .node-version 保持一致；写死大版本而不是 latest，
+        # 免得某天 Node 发新版把 CI 弄挂了却查不到原因
+        node-version-file: .node-version
+        cache: pnpm
+
+    - name: 安装依赖
+      shell: bash
+      # frozen-lockfile：锁文件跟 package.json 对不上时直接失败，
+      # 而不是悄悄装一个跟本地不同的依赖树
+      run: pnpm install --frozen-lockfile

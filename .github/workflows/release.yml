@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # 不打 tag 也能手动跑一次，产物只挂在 workflow 上不发布 —— 改完发布流程
+  # 总得先验证一遍，而验证的代价不该是往仓库里塞一个作废的 Release
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 是否发布到 Release
+        type: boolean
+        default: false
+
+# 发布不能取消：一半产物传上去、另一半被中断，Release 就是坏的
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SHOULD_PUBLISH: ${{ github.event_name == 'push' || inputs.publish == true }}
+
+jobs:
+  # 先把 Release 建出来，三个平台再并行往里传。
+  # 反过来（谁先打完谁创建）会在并发时互相覆盖
+  create-release:
+    if: github.event_name == 'push' || inputs.publish == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 解析版本号
+        id: meta
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          [[ "$tag" == v* ]] || tag="v$(node -p "require('./apps/desktop/package.json').version")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: 建 Release（草稿）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.meta.outputs.tag }}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag 已存在，跳过创建"
+            exit 0
+          fi
+          prerelease=""
+          # 带后缀的版本号（v0.2.0-beta.1）当预发布处理
+          [[ "$tag" == *-* ]] && prerelease="--prerelease"
+          # 先建成草稿：三个平台都传完再手动发布，避免用户看到只有一个平台的 Release
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Mycelia $tag" \
+            --generate-notes \
+            --draft \
+            $prerelease
+
+  build:
+    needs: [create-release]
+    # create-release 在手动不发布时被跳过，这里仍要继续
+    if: always() && needs.create-release.result != 'failure'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS 分两个 runner 原生构建。交叉编译在本地实测会失败：
+          # electron-builder 复制的是各架构自己那份 Electron.app
+          - os: macos-14
+            platform: --mac
+            arch: --arm64
+            label: macos-arm64
+          - os: macos-15-intel
+            platform: --mac
+            arch: --x64
+            label: macos-x64
+          - os: ubuntu-22.04
+            platform: --linux
+            arch: --x64
+            label: linux-x64
+          - os: ubuntu-22.04-arm
+            platform: --linux
+            arch: --arm64
+            label: linux-arm64
+          - os: windows-latest
+            platform: --win
+            arch: --x64
+            label: windows-x64
+    runs-on: ${{ matrix.os }}
+    name: build (${{ matrix.label }})
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: 版本号对齐 tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: node scripts/set-version.mjs "${GITHUB_REF_NAME#v}"
+
+      # rpm 打包需要 rpmbuild，ubuntu runner 默认没装
+      - name: Linux 打包依赖
+        if: matrix.platform == '--linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: 构建工作区
+        run: pnpm build
+
+      - name: 为 Electron 重建原生模块
+        working-directory: apps/desktop
+        run: pnpm rebuild
+
+      - name: 打包
+        working-directory: apps/desktop
+        env:
+          # 没有 Apple 开发者证书，关掉自动查找免得它去翻钥匙串然后报错。
+          # 产物走 ad-hoc 签名（见 build.mac.identity），首次打开需要用户放行，
+          # README 里写了怎么做
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.platform }} ${{ matrix.arch }} --publish never
+
+      - name: 确认产物存在且命名正确
+        shell: bash
+        run: node scripts/verify-artifacts.mjs
+
+      - name: 上传到 Release
+        if: env.SHOULD_PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ needs.create-release.outputs.tag }}"
+          # blockmap 和 latest*.yml 是 electron-updater 用的，一并传上去，
+          # 将来接自动更新时不用重新发版
+          files=()
+          while IFS= read -r -d '' f; do files+=("$f"); done \
+            < <(find apps/desktop/release -maxdepth 1 -type f \
+                \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' \
+                   -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \
+                   -o -name '*.blockmap' -o -name 'latest*.yml' \) -print0 | sort -z)
+          if (( ${#files[@]} == 0 )); then
+            echo "::error::没有找到任何产物"
+            exit 1
+          fi
+          printf '将上传：%s\n' "${files[@]}"
+          gh release upload "$tag" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: 产物挂到 workflow（未发布时）
+        if: env.SHOULD_PUBLISH != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mycelia-${{ matrix.label }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.rpm
+          if-no-files-found: error
+          retention-days: 14
+
+  # 全平台都传完才把草稿转正 —— 否则用户会下载到一个缺平台的 Release
+  publish:
+    needs: [create-release, build]
+    if: github.event_name == 'push' || inputs.publish == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 发布 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ needs.create-release.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" --draft=false

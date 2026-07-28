@@ -22,7 +22,9 @@
     "myc": "node apps/cli/dist/bin.js",
     "desktop:dev": "pnpm --filter @mycelia/desktop dev",
     "desktop:build": "pnpm --filter @mycelia/desktop build",
-    "clean": "rm -rf packages/*/dist apps/*/dist services/*/dist **/*.tsbuildinfo"
+    "clean": "rm -rf packages/*/dist apps/*/dist services/*/dist **/*.tsbuildinfo",
+    "pretest": "node scripts/ensure-node-abi.mjs",
+    "rebuild:node": "node scripts/ensure-node-abi.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
