@@ -10,45 +10,14 @@ import type {
 import { clamp, createLogger, normalizeTag, truncate } from '@mycelia/shared'
 import { buildExtractionPrompt } from './prompt.js'
 import { extractByRules } from './rules.js'
-import type { ExtractedMemory, ExtractionOutcome } from './types.js'
+import {
+  type ExtractedMemory,
+  type ExtractionOutcome,
+  normalizeRawMemory,
+  type RawMemory,
+} from './types.js'
 
 const log = createLogger('core:extract')
-
-const VALID_KINDS = new Set<MemoryKind>([
-  'fact',
-  'preference',
-  'decision',
-  'howto',
-  'credential',
-  'project',
-  'learning',
-  'issue',
-  'insight',
-  'entity',
-])
-
-const VALID_ENTITY_KINDS = new Set<EntityKind>([
-  'person',
-  'repo',
-  'service',
-  'host',
-  'tech',
-  'file',
-  'org',
-  'concept',
-])
-
-/** LLM 返回的原始形状 —— 一切字段都当作不可信 */
-interface RawMemory {
-  kind?: string
-  title?: string
-  content?: string
-  tags?: unknown
-  sensitivity?: string
-  confidence?: unknown
-  importance?: unknown
-  entities?: unknown
-}
 
 export interface ExtractorOptions {
   llm: LlmProvider
@@ -126,52 +95,9 @@ export class MemoryExtractor {
 
   /** 把 LLM 的任意输出规整成合法的 ExtractedMemory，字段非法就丢弃整条 */
   private normalize(raw: RawMemory, conv: Conversation): ExtractedMemory | null {
-    const title = typeof raw.title === 'string' ? raw.title.trim() : ''
-    const content = typeof raw.content === 'string' ? raw.content.trim() : ''
-    if (!title || !content) return null
-    // 标题比正文还长说明模型没理解要求，这种条目质量通常也差
-    if (title.length > 120) return null
-
-    const kind = (VALID_KINDS.has(raw.kind as MemoryKind) ? raw.kind : 'fact') as MemoryKind
-
-    const tags = Array.isArray(raw.tags)
-      ? [...new Set(raw.tags.filter((t): t is string => typeof t === 'string').map(normalizeTag))]
-          .filter(Boolean)
-          .slice(0, 6)
-      : []
-
-    const sensitivity = (
-      ['public', 'private', 'secret'].includes(raw.sensitivity as string)
-        ? raw.sensitivity
-        : 'private'
-    ) as Sensitivity
-
-    const entities = Array.isArray(raw.entities)
-      ? raw.entities
-          .map((e) => {
-            const obj = e as { name?: unknown; kind?: unknown }
-            const name = typeof obj.name === 'string' ? obj.name.trim() : ''
-            if (!name || name.length > 80) return null
-            const ekind = (
-              VALID_ENTITY_KINDS.has(obj.kind as EntityKind) ? obj.kind : 'concept'
-            ) as EntityKind
-            return { name, kind: ekind }
-          })
-          .filter((e): e is { name: string; kind: EntityKind } => e !== null)
-          .slice(0, 8)
-      : []
-
-    return {
-      kind,
-      title: truncate(title, 120),
-      content,
-      tags,
-      sensitivity,
-      confidence: clamp(toNumber(raw.confidence, 0.7)),
-      importance: clamp(toNumber(raw.importance, 0.5)),
-      entities,
-      sourceMessageIds: conv.messages.slice(-3).map((m) => m.id),
-    }
+    const memory = normalizeRawMemory(raw)
+    if (!memory) return null
+    return { ...memory, sourceMessageIds: conv.messages.slice(-3).map((m) => m.id) }
   }
 
   /**
@@ -214,6 +140,7 @@ function toNumber(v: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+export * from './document.js'
 export * from './prompt.js'
 export * from './types.js'
 export { extractByRules }

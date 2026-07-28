@@ -65,6 +65,21 @@ export class SourceRepo {
     return this.get(id)!
   }
 
+  /**
+   * 迁移一个源的位置。
+   *
+   * 与 update 分开：路径是这张表的业务主键（UNIQUE），改它意味着「同一批
+   * 文档换了个地方住」，而不是改个显示名那么轻。分成两个方法，调用方
+   * 就不会在改名的时候顺手把路径也带偏。
+   */
+  relocate(id: string, path: string, name?: string): void {
+    this.db
+      .prepare(
+        'UPDATE knowledge_sources SET path = ?, name = COALESCE(?, name), updated_at = ? WHERE id = ?',
+      )
+      .run(path, name ?? null, Date.now(), id)
+  }
+
   update(
     id: string,
     patch: Partial<Pick<StoredSource, 'name' | 'enabled' | 'watch' | 'extensions' | 'exclude'>>,

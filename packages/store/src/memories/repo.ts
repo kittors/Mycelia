@@ -30,6 +30,19 @@ export class MemoryRepo {
     return insertMemory(this.writeContext(), input, actor)
   }
 
+  /**
+   * 按标题找一条记忆。
+   *
+   * 给「别重复提取」用：同一篇文档改个错别字就会重新索引，而模型对同一段
+   * 内容给出的标题相当稳定，撞上就说明这条已经提过了。
+   */
+  findByTitle(title: string): StoredMemory | undefined {
+    const row = this.db.prepare('SELECT id FROM memories WHERE title = ? LIMIT 1').get(title) as
+      | { id: string }
+      | undefined
+    return row ? this.get(row.id) : undefined
+  }
+
   update(id: string, patch: MemoryPatch, actor = 'user'): StoredMemory {
     return updateMemory(this.writeContext(), id, patch, actor)
   }

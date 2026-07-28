@@ -234,6 +234,16 @@ export interface MyceliaApi {
     absPath: string
     onDisk: boolean
   } | null>
+  /**
+   * 从这些文档里提炼候选记忆，放进待确认队列。
+   *
+   * 一篇一次模型调用，所以是显式动作而不是索引时自动跑。
+   */
+  harvestDocuments(documentIds: string[]): Promise<{
+    created: number
+    duplicates: number
+    failed: number
+  }>
   /** 把改动写回磁盘原文件并重新索引 */
   writeDocument(documentId: string, text: string): Promise<{ chunkCount: number }>
   /** 手写一篇知识入库。传 documentId 表示编辑已有的那篇 */

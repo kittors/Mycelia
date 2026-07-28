@@ -3,6 +3,7 @@ import { useAsync, useDebounced } from '../../shared/hooks/useAsync.js'
 import { relativeTime } from '../../shared/lib/format.js'
 import { Button, Empty, Icon, IconButton, Input, Spinner } from '../../shared/ui/index.js'
 import { useApp } from '../../store/app-store.js'
+import { confirm } from '../../store/confirm.js'
 import { DocumentEditor } from './DocumentEditor.js'
 import { DocumentList, SearchResults } from './DocumentLists.js'
 import { SourceList } from './SourceList.js'
@@ -23,6 +24,7 @@ export function KnowledgeView() {
   const [composing, setComposing] = useState(false)
   /** 正在编辑的手记 id。null 表示新建 */
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [harvesting, setHarvesting] = useState(false)
 
   const debouncedQuery = useDebounced(query)
 
@@ -46,6 +48,38 @@ export function KnowledgeView() {
     if (!activeSourceId) return null
     return window.mycelia.listDocuments(activeSourceId)
   }, [activeSourceId, debouncedQuery, revision])
+
+  /**
+   * 从当前这批文档里提炼记忆。
+   *
+   * 做成显式按钮而不是索引时自动跑：一篇一次模型调用，挂载一个几十篇的
+   * 目录就是几十回，得让用户自己决定什么时候花这个钱。提炼结果进「待确认」，
+   * 不直接入库 —— 模型抽出来的东西需要过目。
+   */
+  const harvest = useCallback(async () => {
+    const ids = (documents ?? []).map((d) => d.id)
+    if (ids.length === 0) return
+    const ok = await confirm({
+      title: `从 ${ids.length} 篇文档里提炼记忆？`,
+      body: '每篇一次模型调用。提炼出的条目会进「待确认」，由你决定收下哪些。',
+      confirmText: '开始',
+    })
+    if (!ok) return
+
+    setHarvesting(true)
+    try {
+      const result = await window.mycelia.harvestDocuments(ids)
+      const parts = [`提出 ${result.created} 条候选`]
+      if (result.duplicates > 0) parts.push(`跳过 ${result.duplicates} 条重复`)
+      if (result.failed > 0) parts.push(`${result.failed} 篇失败`)
+      app.toast(parts.join('，'), result.created > 0 ? 'success' : 'info')
+      app.bump()
+    } catch (error) {
+      app.fail(error)
+    } finally {
+      setHarvesting(false)
+    }
+  }, [documents, app])
 
   const addSource = useCallback(async () => {
     try {
@@ -128,6 +162,17 @@ export function KnowledgeView() {
           >
             新建文档
           </Button>
+          {(documents?.length ?? 0) > 0 && !searchMode && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={harvesting}
+              icon={<Icon name="spark" size={13} />}
+              onClick={harvest}
+            >
+              {harvesting ? '提炼中…' : '提炼记忆'}
+            </Button>
+          )}
           {searching && <Spinner className="text-faint" />}
           {indexing && (
             <span className="flex items-center gap-1.5 text-[11.5px] text-faint">

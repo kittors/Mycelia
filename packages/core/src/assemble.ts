@@ -71,7 +71,7 @@ export function assembleService(store: MyceliaStore, config: Config): ServicePar
     graphBuilder: new GraphBuilder(store, config.graph),
     indexer,
     docSearch,
-    library: new KnowledgeLibrary(store, indexer, docSearch, config),
+    library: new KnowledgeLibrary(store, indexer, docSearch, config, llm),
     captureGate: new CaptureGate(store, embedder, llm, config.capture, config.llm),
     extractor,
     pipeline: new ExtractionPipeline(store, extractor, embedder, config),

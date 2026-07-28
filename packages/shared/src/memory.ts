@@ -69,6 +69,13 @@ export const MemoryOrigin = z.object({
   agent: z.string(),
   /** agent 侧的会话 ID */
   sessionId: z.string().optional(),
+  /**
+   * 这条记忆是从哪篇文档提炼出来的。
+   *
+   * 有了它，记忆才不是无根的断言 —— 点开能回到原文核对，文档更新时也知道
+   * 哪些记忆需要重新审视。图谱里那条「派生自」的边也是靠它连起来的。
+   */
+  documentId: z.string().optional(),
   /** 会话发生时的工作目录 */
   cwd: z.string().optional(),
   /** 归属项目（通常是 cwd 的 git 仓库名） */

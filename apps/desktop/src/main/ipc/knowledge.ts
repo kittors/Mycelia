@@ -102,6 +102,15 @@ export function registerKnowledgeHandlers(handle: Handle, service: MemoryService
     }
   })
 
+  handle('harvestDocuments', async (documentIds: string[]) => {
+    const results = await service.library.harvest(documentIds)
+    return {
+      created: results.reduce((sum, r) => sum + r.created, 0),
+      duplicates: results.reduce((sum, r) => sum + r.duplicates, 0),
+      failed: results.filter((r) => r.error).length,
+    }
+  })
+
   handle('writeDocument', (documentId: string, text: string) =>
     service.library.writeDocument(documentId, text),
   )
