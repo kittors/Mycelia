@@ -113,6 +113,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
 
+      # rpm 打包要 rpmbuild，runner 上默认没有
+      - name: Linux 打包依赖
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
       - name: 构建工作区
         run: pnpm build
 

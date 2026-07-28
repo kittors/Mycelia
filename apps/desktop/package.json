@@ -118,7 +118,9 @@
           "Comment": "连接所有 agent 知识的地下菌丝网络",
           "Categories": "Utility;Development;"
         }
-      }
+      },
+      "maintainer": "kittors <yuan364299311@gmail.com>",
+      "synopsis": "给 AI coding agent 的长期记忆层"
     },
     "nsis": {
       "shortcutName": "Mycelia",
@@ -131,5 +133,14 @@
     }
   },
   "description": "连接所有 agent 知识的地下菌丝网络",
-  "author": "Mycelia"
+  "author": {
+    "name": "kittors",
+    "email": "yuan364299311@gmail.com"
+  },
+  "homepage": "https://github.com/kittors/Mycelia",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kittors/Mycelia.git"
+  }
 }
