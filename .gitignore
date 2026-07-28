@@ -1,7 +1,12 @@
 node_modules/
 dist/
 out/
+
+# build/ 会匹配任意层级的同名目录 —— apps/desktop/build 存的是应用图标
+# 这类源资源，不是构建产物，必须放行，否则 README 里的图标会 404
 build/
+!apps/desktop/build/
+!apps/desktop/build/**
 release/
 *.tsbuildinfo
 .DS_Store
