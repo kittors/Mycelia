@@ -360,24 +360,45 @@
 }
 
 /**
- * 富文本编辑器的排版。
+ * Markdown 预览的排版。
  *
  * 不引 typography 插件：那套默认值是给文章页设计的，行高和间距都偏大，
- * 放进这种密度的工具界面里会显得松垮。这里只定必要的几项，
- * 与界面其余部分的节奏保持一致。
+ * 放进这种密度的工具界面里会显得松垮。
+ *
+ * 更关键的是这里对齐的是**一套行网格**，而不是各定各的间距。分栏时
+ * 左边是纯行流 —— 每一行都恰好 --md-line 高，标题行按字号放大同一个倍率；
+ * 预览要跟它逐行咬合，块与块之间就必须是整数倍的行高，而不能用 em
+ * 相对间距（em 相对元素自身字号，标题的 1.4em 比正文的 1.4em 高出一截，
+ * 差值一路往下累积，翻两屏就完全错开了）。
+ *
+ * 所以下面所有的纵向间距都用 --md-line 的倍数，字号和行高与编辑器
+ * 逐项对齐（见 markdown/theme.ts）。
  */
 .prose-mycelia {
+  --md-font: 13px;
+  --md-line: 22.75px;
+  font-size: var(--md-font);
+  /* 用固定值而不是倍率：倍率会随标题字号放大，行网格就散了 */
+  line-height: var(--md-line);
   color: var(--text);
 }
+/* 块之间空一行，正好对上源文里那个空行 */
 .prose-mycelia > * + * {
-  margin-top: 0.7em;
+  margin-top: var(--md-line);
+}
+/* 首个块不留上边距 —— 否则预览第一行天生就比编辑区低一截 */
+.prose-mycelia > *:first-child {
+  margin-top: 0;
 }
 .prose-mycelia h1,
 .prose-mycelia h2,
-.prose-mycelia h3 {
+.prose-mycelia h3,
+.prose-mycelia h4,
+.prose-mycelia h5,
+.prose-mycelia h6 {
   font-weight: 600;
-  line-height: 1.35;
-  margin-top: 1.4em;
+  /* 标题的行盒 = 字号 × 1.75，与编辑器里同一行的高度一致 */
+  line-height: 1.75;
 }
 .prose-mycelia h1 {
   font-size: 1.35em;
@@ -387,6 +408,11 @@
 }
 .prose-mycelia h3 {
   font-size: 1.05em;
+}
+.prose-mycelia h4,
+.prose-mycelia h5,
+.prose-mycelia h6 {
+  font-size: 1em;
 }
 .prose-mycelia ul,
 .prose-mycelia ol {
@@ -401,11 +427,21 @@
 .prose-mycelia li > p {
   margin: 0;
 }
+/* 列表项在源文里是连续的行，中间不该凭空多出一个空行 */
+.prose-mycelia li + li {
+  margin-top: 0;
+}
+.prose-mycelia li > ul,
+.prose-mycelia li > ol {
+  margin-top: 0;
+}
 .prose-mycelia blockquote {
   border-left: 2px solid var(--border-strong);
   padding-left: 0.9em;
   color: var(--text-muted);
 }
+/* 代码块与表格自带内边距，会比源文高出一截 —— 这是没法消掉的，
+   靠同步滚动兜住偏差 */
 .prose-mycelia code {
   background: var(--sunken);
   border-radius: var(--radius-xs);
@@ -443,10 +479,13 @@
 .prose-mycelia hr {
   border: none;
   border-top: 1px solid var(--border);
-  margin: 1.2em 0;
+  /* 占满一行的高度，源文里的 `---` 也正好是一行 */
+  height: var(--md-line);
+  margin: 0;
 }
 .prose-mycelia img {
-  margin: 0.5em 0;
+  max-width: 100%;
+  margin: 0;
 }
 
 /* 占位文字：只在文档为空时出现在第一行 */

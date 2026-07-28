@@ -117,7 +117,9 @@ export function MarkdownEditor({
           <div
             ref={pane.right}
             className={cn(
-              'min-w-0 overflow-auto px-4 py-3 text-[13px] leading-[1.75]',
+              // 字号行高交给 .prose-mycelia 自己定 —— 行网格的所有尺寸都从
+              // 那一处推导，写在这里会变成第二个事实来源
+              'min-w-0 overflow-auto px-4 py-3',
               mode === 'split' ? 'w-1/2 bg-surface/30' : 'w-full',
             )}
           >

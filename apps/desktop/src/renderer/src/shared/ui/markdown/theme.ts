@@ -38,8 +38,9 @@ const base = EditorView.theme({
  * 让人一眼看出层级。把每种语法都上色反而会让源文变得比渲染结果还花。
  */
 const highlight = HighlightStyle.define([
-  { tag: tags.heading1, fontSize: '1.3em', fontWeight: '600' },
-  { tag: tags.heading2, fontSize: '1.15em', fontWeight: '600' },
+  // 字号必须与预览的 h1/h2/h3 逐项相等，分栏时同一个标题才在同一水平线上
+  { tag: tags.heading1, fontSize: '1.35em', fontWeight: '600' },
+  { tag: tags.heading2, fontSize: '1.18em', fontWeight: '600' },
   { tag: tags.heading3, fontSize: '1.05em', fontWeight: '600' },
   { tag: tags.strong, fontWeight: '600' },
   { tag: tags.emphasis, fontStyle: 'italic' },
