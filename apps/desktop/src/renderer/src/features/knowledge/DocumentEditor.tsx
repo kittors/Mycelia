@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Icon, MarkdownEditor } from '../../shared/ui/index.js'
 import { useApp } from '../../store/app-store.js'
+import { clearDraft, useDraft } from './useDraft.js'
 
 /**
  * 文档编辑。
@@ -11,6 +12,11 @@ import { useApp } from '../../store/app-store.js'
  *
  * 对照：写记忆仍然用抽屉，因为那是一个标题加几句话的事，
  * 打开个整页反而小题大做。判断标准是内容的体量，不是操作的类型。
+ *
+ * 没有「保存」这个动作。敲下的每个字都实时留了底（见 useDraft），
+ * 退出不会丢，所以界面上不提醒保存、退出也不拦一道确认 ——
+ * 那类提示是把本该由程序承担的事推给人。按钮做的是入库：
+ * 分块、向量化、进检索，这才是一次需要用户明确表态的操作。
  */
 export function DocumentEditor({
   documentId,
@@ -27,8 +33,10 @@ export function DocumentEditor({
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(Boolean(documentId))
-  const [dirty, setDirty] = useState(false)
   const [error, setError] = useState('')
+
+  const draft = useMemo(() => ({ title, text }), [title, text])
+  const { restored, dismiss } = useDraft(documentId, draft, !loading)
 
   useEffect(() => {
     if (!documentId) return
@@ -58,9 +66,10 @@ export function DocumentEditor({
         text: text.trim(),
         documentId,
       })
-      app.toast(`已入库，切成 ${result.chunkCount} 个片段`, 'success')
+      app.toast(documentId ? '已更新' : `已入库，切成 ${result.chunkCount} 个片段`, 'success')
       app.bump()
-      setDirty(false)
+      // 已经落库了，草稿留着只会在下次打开时冒出来问要不要恢复
+      clearDraft(documentId)
       onSaved(result.documentId)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -69,22 +78,11 @@ export function DocumentEditor({
     }
   }
 
-  /**
-   * 有未保存的改动时拦一下再走。
-   *
-   * 写了半小时的东西被一次误触清掉，是没有任何补救办法的 ——
-   * 编辑器里没有草稿箱，退出即丢失。
-   */
-  const close = () => {
-    if (dirty && !window.confirm('有未保存的修改，确定放弃吗？')) return
-    onClose()
-  }
-
-  // Esc 退出，与设置页保持一致
+  // Esc 直接走，内容都在草稿里
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-      // ⌘S / Ctrl+S 保存 —— 长文编辑时手会自己去按
+      if (event.key === 'Escape') onClose()
+      // ⌘S 是肌肉记忆，按了就入库；界面上不再宣传它
       if ((event.metaKey || event.ctrlKey) && event.key === 's') {
         event.preventDefault()
         if (title.trim() && text.trim() && !busy) void save()
@@ -95,6 +93,8 @@ export function DocumentEditor({
   })
 
   const canSave = Boolean(title.trim() && text.trim()) && !busy && !loading
+  // 内容一致就不必问了 —— 那是上次入库后留下的同一份东西
+  const offerRestore = restored && (restored.title !== title || restored.text !== text)
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-canvas">
@@ -102,7 +102,7 @@ export function DocumentEditor({
         <Button
           variant="ghost"
           size="sm"
-          onClick={close}
+          onClick={onClose}
           icon={<Icon name="chevron" size={13} className="rotate-180" />}
         >
           返回
@@ -110,19 +110,36 @@ export function DocumentEditor({
 
         <input
           value={title}
-          onChange={(event) => {
-            setTitle(event.target.value)
-            setDirty(true)
-          }}
+          onChange={(event) => setTitle(event.target.value)}
           placeholder="给这篇文档起个标题"
           className="flex-1 min-w-0 h-8 px-2 bg-transparent text-[14px] font-medium outline-none placeholder:text-faint placeholder:font-normal"
         />
 
-        {dirty && <span className="text-[11px] text-faint shrink-0">未保存</span>}
         <Button variant="primary" size="sm" disabled={!canSave} onClick={save}>
-          {busy ? '入库中…' : '入库'}
+          {busy ? (documentId ? '更新中…' : '入库中…') : documentId ? '保存' : '入库'}
         </Button>
       </header>
+
+      {offerRestore && (
+        <div className="flex items-center gap-2 px-4 py-2 shrink-0 border-b border-border bg-hover text-[12px]">
+          <Icon name="timeline" size={12} className="text-faint shrink-0" />
+          <span className="flex-1 min-w-0 truncate">上次离开时还有没入库的编辑</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setTitle(restored.title)
+              setText(restored.text)
+              dismiss()
+            }}
+          >
+            恢复
+          </Button>
+          <Button variant="ghost" size="sm" onClick={dismiss}>
+            忽略
+          </Button>
+        </div>
+      )}
 
       {error && (
         <div className="px-4 py-2 text-[12px] text-danger border-b border-border shrink-0">
@@ -133,10 +150,7 @@ export function DocumentEditor({
       <div className="flex-1 min-h-0 p-3">
         <MarkdownEditor
           value={text}
-          onChange={(next) => {
-            setText(next)
-            setDirty(true)
-          }}
+          onChange={setText}
           placeholder={loading ? '读取中…' : '直接粘贴 Markdown，或从零开始写'}
           className="h-full"
         />
@@ -145,7 +159,7 @@ export function DocumentEditor({
       <footer className="flex items-center gap-3 px-4 py-2 shrink-0 border-t border-border text-[11px] text-faint">
         <span>标题层级决定切分，写清楚层级检索会更准</span>
         <div className="flex-1" />
-        <span>⌘S 保存 · Esc 返回</span>
+        <span>编辑内容随时留底，{documentId ? '保存' : '入库'}后才进检索</span>
       </footer>
     </div>
   )

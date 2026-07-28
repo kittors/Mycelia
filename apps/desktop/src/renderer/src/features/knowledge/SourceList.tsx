@@ -4,6 +4,7 @@ import { cn } from '../../shared/lib/cn.js'
 import { relativeTime, truncatePath } from '../../shared/lib/format.js'
 import { Button, Icon, IconButton, SkeletonRow } from '../../shared/ui/index.js'
 import { useApp } from '../../store/app-store.js'
+import { confirm } from '../../store/confirm.js'
 
 export function SourceList({
   sources,
@@ -33,6 +34,13 @@ export function SourceList({
 
   const remove = async (id: string) => {
     setMenuFor(null)
+    const ok = await confirm({
+      title: '移除这个目录？',
+      body: '目录里已索引的内容会从检索中消失。磁盘上的文件不会被动到，重新挂载即可恢复。',
+      confirmText: '移除',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await window.mycelia.removeSource(id)
       if (activeId === id) onSelect(null)

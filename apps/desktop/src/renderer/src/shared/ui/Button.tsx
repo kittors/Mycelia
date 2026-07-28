@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { cn } from '../lib/cn.js'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-solid'
 type Size = 'sm' | 'md'
 
 const VARIANTS: Record<Variant, string> = {
@@ -9,7 +9,10 @@ const VARIANTS: Record<Variant, string> = {
   primary: 'bg-accent text-accent-fg hover:bg-accent-hover active:scale-[0.985]',
   secondary: 'bg-raised text-text border border-border hover:bg-hover active:bg-active',
   ghost: 'text-muted hover:text-text hover:bg-hover active:bg-active',
+  // 文字型：用在菜单项这类「一排选项里有一个是危险的」场合
   danger: 'text-danger hover:bg-danger/10 active:bg-danger/15',
+  // 实心：用在确认框里那个真正执行破坏的按钮，它得有主操作的分量
+  'danger-solid': 'bg-danger text-white hover:brightness-110 active:scale-[0.985]',
 }
 
 const SIZES: Record<Size, string> = {

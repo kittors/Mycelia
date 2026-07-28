@@ -11,6 +11,7 @@ import { VaultView } from '../features/vault/VaultView.js'
 import { SettingsScreen } from '../settings/SettingsScreen.js'
 import { applyTheme, useApp, type ViewId } from '../store/app-store.js'
 import { CommandPalette } from './shell/CommandPalette.js'
+import { ConfirmDialog } from './shell/ConfirmDialog.js'
 import { Sidebar } from './shell/Sidebar.js'
 import { Toaster } from './shell/Toaster.js'
 import { TopBar } from './shell/TopBar.js'
@@ -157,6 +158,7 @@ export default function App() {
       {composerOpen && <MemoryComposer />}
       {paletteOpen && <CommandPalette />}
       <Toaster />
+      <ConfirmDialog />
     </div>
   )
 }
