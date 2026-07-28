@@ -119,6 +119,10 @@ jobs:
           if [[ "${{ matrix.arch }}" == "--arm64" ]]; then
             sudo apt-get install -y ruby ruby-dev build-essential
             sudo gem install fpm --no-document
+            # 只在这里写入。用 env 表达式给别的架构留个空字符串是不行的 ——
+            # electron-builder 看的是变量存不存在，空值照样让它去找系统 fpm，
+            # 然后在没装的 x64 上报 executable file not found
+            echo "USE_SYSTEM_FPM=true" >> "$GITHUB_ENV"
           fi
 
       - name: 构建工作区
@@ -135,8 +139,6 @@ jobs:
           # 产物走 ad-hoc 签名（见 build.mac.identity），首次打开需要用户放行，
           # README 里写了怎么做
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          # 只有 arm64 需要走系统的 fpm，x64 用自带的那份就好
-          USE_SYSTEM_FPM: ${{ matrix.arch == '--arm64' && matrix.platform == '--linux' && 'true' || '' }}
         run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.platform }} ${{ matrix.arch }} --publish never
 
       - name: 确认产物存在且命名正确
