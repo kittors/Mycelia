@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { cn } from '../../shared/lib/cn.js'
-import { Button, Field, Icon, Input, Select } from '../../shared/ui/index.js'
+import { Button, Field, Icon, Input, Select, SettingRow, Toggle } from '../../shared/ui/index.js'
 import { PaneIntro, PaneSection } from '../components.js'
 import { PROTOCOLS } from '../protocols.js'
 import { useLiveConfig } from '../useLiveConfig.js'
@@ -110,6 +110,53 @@ export function ModelsPane() {
             </>
           )}
         </div>
+      </PaneSection>
+
+      <PaneSection title="识图模型" className="mt-6">
+        <SettingRow label="启用识图" hint="图片进不了向量空间，靠模型转成描述后才能被搜到">
+          <Toggle
+            label="启用识图"
+            checked={config.vision.enabled}
+            onChange={(enabled) => patchSection('vision', { enabled })}
+          />
+        </SettingRow>
+
+        {config.vision.enabled && (
+          <>
+            <Field label="模型" hint="留空端点则复用上面主模型的地址与密钥">
+              <Input
+                value={config.vision.model}
+                onChange={(event) => patchSection('vision', { model: event.target.value })}
+                placeholder="gpt-4o-mini"
+              />
+            </Field>
+
+            <Field label="端点" hint="可选。多数供应商的视觉模型走同一个入口">
+              <Input
+                value={config.vision.baseUrl ?? ''}
+                onChange={(event) => patchSection('vision', { baseUrl: event.target.value })}
+                placeholder="留空则用主模型的端点"
+              />
+            </Field>
+
+            <Field
+              label="描述详细度"
+              hint="截图和图表选详细 —— 界面文字、坐标轴、图例都会被转述出来，这样才搜得到"
+            >
+              <Select
+                value={config.vision.detail}
+                onChange={(detail) => patchSection('vision', { detail })}
+                options={[
+                  { value: 'brief' as const, label: '简要', hint: '一句话' },
+                  { value: 'detailed' as const, label: '详细', hint: '含图内文字' },
+                ]}
+              />
+            </Field>
+          </>
+        )}
+        <p className="text-[11px] text-faint leading-relaxed">
+          不配也能用：图片照样存、照样显示，只是检索不到里面的内容。
+        </p>
       </PaneSection>
 
       <PaneSection title="嵌入模型" className="mt-6">

@@ -32,6 +32,17 @@ export function databasePath(): string {
   return join(dataDir(), 'mycelia.db')
 }
 
+/**
+ * 图片等二进制资源。
+ *
+ * 不塞进数据库：SQLite 存大 blob 会让库文件迅速膨胀，备份、迁移、
+ * WAL 检查点全跟着变慢，而这些字节从来不参与查询。放文件系统里，
+ * 库里只留一个 asset:// 引用。
+ */
+export function assetsDir(): string {
+  return join(dataDir(), 'assets')
+}
+
 /** 本地嵌入模型缓存目录 */
 export function modelCacheDir(): string {
   return join(dataDir(), 'models')

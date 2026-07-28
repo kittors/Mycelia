@@ -57,6 +57,9 @@ export function registerMemoryHandlers(handle: Handle, service: MemoryService): 
   })
   handle('getGraph', (opts: Parameters<MemoryService['graph']>[0]) => service.graph(opts ?? {}))
 
+  /** 已用过的标签及其频次。用于写入时的候选，越常用的排越前 */
+  handle('listTags', () => service.store.tags.usage())
+
   handle('saveGraphLayout', (points: ReadonlyArray<{ id: string; x: number; y: number }>) => {
     service.store.layout.save(new Map(points.map((p) => [p.id, { x: p.x, y: p.y }])))
   })

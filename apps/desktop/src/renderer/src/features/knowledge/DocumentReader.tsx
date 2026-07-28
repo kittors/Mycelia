@@ -12,13 +12,18 @@ import { Drawer } from '../../shared/ui/Overlay.js'
 export function DocumentReader({
   documentId,
   onClose,
+  onEdit,
 }: {
   documentId: string
   onClose: () => void
+  /** 手记可编辑；挂载目录里的文件以磁盘为准，只读 */
+  onEdit?: () => void
 }) {
   const { data, loading } = useAsync(() => window.mycelia.readDocument(documentId), [documentId])
 
   const document = data?.document
+  // 手记存在伪路径下，磁盘上没有对应文件
+  const isNote = document?.absPath.startsWith('mycelia://') ?? false
 
   return (
     <Drawer
@@ -33,13 +38,23 @@ export function DocumentReader({
               {document.chunkCount} 个片段 · {formatBytes(document.sizeBytes)} · 索引于{' '}
               {relativeTime(document.indexedAt)}
             </span>
-            <Button
-              size="sm"
-              icon={<Icon name="external" size={13} />}
-              onClick={() => void window.mycelia.openPath(document.absPath)}
-            >
-              打开原文件
-            </Button>
+            {/*
+              手记存在 mycelia:// 这个伪路径下，磁盘上根本没有对应文件 ——
+              对它调 openPath 只会静默失败。手记该走编辑，文件才该走「打开」。
+            */}
+            {isNote ? (
+              <Button size="sm" icon={<Icon name="edit" size={13} />} onClick={() => onEdit?.()}>
+                编辑
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                icon={<Icon name="external" size={13} />}
+                onClick={() => void window.mycelia.openPath(document.absPath)}
+              >
+                打开原文件
+              </Button>
+            )}
           </>
         )
       }

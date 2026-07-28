@@ -1,4 +1,4 @@
-import { Input, SettingRow } from '../../shared/ui/index.js'
+import { Input, SettingRow, Toggle } from '../../shared/ui/index.js'
 import { PaneIntro, PaneSection } from '../components.js'
 import { useLiveConfig } from '../useLiveConfig.js'
 
@@ -110,6 +110,38 @@ export function KnowledgePane() {
             />
           </SettingRow>
         </div>
+      </PaneSection>
+
+      <PaneSection title="图片" className="mt-6">
+        <SettingRow
+          label="索引目录里的图片"
+          hint="靠识图模型把图转成文字才能被搜到。每张图一次调用，大目录会有明显的时间与费用开销"
+        >
+          <Toggle
+            label="索引目录里的图片"
+            checked={knowledge.indexImages}
+            onChange={(indexImages) => patchSection('knowledge', { indexImages })}
+          />
+        </SettingRow>
+
+        {knowledge.indexImages && (
+          <>
+            <SettingRow label="单图上限" hint="超过就跳过。超大图对识图质量没有增益">
+              <Input
+                type="number"
+                value={knowledge.maxImageSizeKb}
+                onChange={(event) =>
+                  patchSection('knowledge', { maxImageSizeKb: Number(event.target.value) || 8192 })
+                }
+                className="w-[110px] text-right"
+              />
+            </SettingRow>
+            <p className="text-[11px] text-faint leading-relaxed">
+              需要先在「模型 → 识图模型」里启用。没启用时图片只登记文件名，
+              按文件名搜得到，内容搜不到。内容没变的图重新索引时会跳过，不会重复付费。
+            </p>
+          </>
+        )}
       </PaneSection>
     </div>
   )

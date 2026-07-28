@@ -52,4 +52,5 @@ export function fastOptions(config: LlmProviderConfig, opts: ChatOptions = {}): 
 }
 
 export * from './types.js'
+export { createVision, type VisionProvider } from './vision.js'
 export { AnthropicProvider, NoopProvider, OllamaProvider, OpenAIProvider, OpenAIResponsesProvider }

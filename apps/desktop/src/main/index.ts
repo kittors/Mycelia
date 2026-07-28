@@ -2,6 +2,7 @@ import { MemoryService } from '@mycelia/core'
 import { Scheduler } from '@mycelia/daemon'
 import { createLogger } from '@mycelia/shared'
 import { app, nativeTheme } from 'electron'
+import { registerAssetScheme, serveAssets } from './ipc/assets.js'
 import { broadcast, registerHandlers } from './ipc/index.js'
 import { buildMenu } from './menu.js'
 import { applyDevIcon, createMainWindow, hasOpenWindows } from './windows.js'
@@ -22,9 +23,20 @@ let scheduler: Scheduler | null = null
  */
 app.setName('Mycelia')
 
+/**
+ * asset:// 的 scheme 必须在 whenReady 之前登记。
+ *
+ * 晚了会静默失效 —— 协议注册不报错，但所有图片都加载不出来，
+ * 而且控制台里没有任何线索。
+ */
+registerAssetScheme()
+
 app
   .whenReady()
   .then(() => {
+    // 图片经自定义协议回传：渲染进程不碰磁盘，主进程是唯一的读取方
+    serveAssets()
+
     // 跟随系统。用户在设置里选了固定主题时，渲染层自己覆盖 data-theme
     nativeTheme.themeSource = 'system'
 

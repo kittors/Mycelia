@@ -8,7 +8,7 @@
 
 import { createEmbedder, type Embedder, withFallback } from '@mycelia/embed'
 import { IngestService } from '@mycelia/ingest'
-import { createLlm, type LlmProvider } from '@mycelia/llm'
+import { createLlm, createVision, type LlmProvider } from '@mycelia/llm'
 import type { Config } from '@mycelia/shared'
 import type { MyceliaStore } from '@mycelia/store'
 import { CaptureGate } from './capture.js'
@@ -37,7 +37,15 @@ export function assembleService(store: MyceliaStore, config: Config): ServicePar
   const embedder = withFallback(createEmbedder(config.embedding))
   const llm = createLlm(config.llm)
 
-  const indexer = new DocumentIndexer(store, embedder, llm, config)
+  /**
+   * 识图交给索引器，用于把目录里的图片转成可检索的文字。
+   * 没在设置里启用时 createVision 会返回空实现，索引图片时只登记文件名。
+   */
+  const vision = createVision(config.vision, {
+    baseUrl: config.llm.baseUrl,
+    apiKey: process.env[config.llm.apiKeyEnv] || config.llm.apiKey,
+  })
+  const indexer = new DocumentIndexer(store, embedder, llm, config, vision)
   const docSearch = new DocumentSearcher(store, embedder, config.retrieval, config.knowledge)
 
   const extractor = new MemoryExtractor({

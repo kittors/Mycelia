@@ -47,7 +47,7 @@ export function SourceList({
     <div className="flex flex-col w-[204px] shrink-0 border-r border-border bg-surface">
       <div className="flex items-center justify-between gap-2 px-3 h-[42px] shrink-0">
         <span className="text-[11px] font-medium text-muted">已挂载目录</span>
-        <IconButton label="挂载新目录" size="sm" onClick={onAdd}>
+        <IconButton label="挂载已有目录" size="sm" onClick={onAdd}>
           <Icon name="plus" size={14} />
         </IconButton>
       </div>
@@ -178,7 +178,7 @@ function SourceFooter({ source, onAdd }: { source?: StoredSource; onAdd: () => v
       {source.lastIndexedAt && <div>索引于 {relativeTime(source.lastIndexedAt)}</div>}
       {source.error && <div className="text-danger mt-1 line-clamp-2">{source.error}</div>}
       <Button size="sm" variant="ghost" className="mt-1.5 -ml-2" onClick={onAdd}>
-        挂载新目录
+        挂载已有目录
       </Button>
     </div>
   )

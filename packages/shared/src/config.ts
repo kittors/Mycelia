@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { CaptureConfig, ExtractionConfig, IngestConfig } from './config-capture.js'
+import { EmbeddingConfig, LlmProtocol, VisionConfig } from './config-models.js'
 import { defaultAgentPaths } from './paths.js'
 
 /**
@@ -12,22 +14,8 @@ import { defaultAgentPaths } from './paths.js'
  * 而且那笔账单记在提交它的人头上。用 MYCELIA_LLM_API_KEY 环境变量
  * 或应用的设置页配置自己的。
  */
-export const DEFAULT_LLM_BASE_URL =
-  process.env.MYCELIA_LLM_BASE_URL ?? 'https://api.openai.com/v1'
+export const DEFAULT_LLM_BASE_URL = process.env.MYCELIA_LLM_BASE_URL ?? 'https://api.openai.com/v1'
 export const DEFAULT_LLM_MODEL = process.env.MYCELIA_LLM_MODEL ?? 'gpt-4o-mini'
-
-/**
- * 接入协议。同一个模型经常同时提供多种协议入口，选错只会 404，
- * 所以这里让用户显式指定，而不是靠 baseUrl 猜。
- *
- * - anthropic         Anthropic Messages API（/v1/messages）
- * - openai            OpenAI Chat Completions（/v1/chat/completions），兼容绝大多数中转
- * - openai-responses  OpenAI Responses API（/v1/responses），新版有状态接口
- * - ollama            本机 Ollama 原生协议（/api/chat）
- * - none              不用模型，全部走规则降级
- */
-export const LlmProtocol = z.enum(['anthropic', 'openai', 'openai-responses', 'ollama', 'none'])
-export type LlmProtocol = z.infer<typeof LlmProtocol>
 
 export const LlmProviderConfig = z.object({
   provider: LlmProtocol.default('openai'),
@@ -48,110 +36,6 @@ export const LlmProviderConfig = z.object({
 })
 export type LlmProviderConfig = z.infer<typeof LlmProviderConfig>
 
-export const EmbeddingConfig = z.object({
-  /**
-   * local  = 内置 ONNX 模型（默认）。随应用分发，离线可用，语义质量是检索的下限保障。
-   * openai = 任意 OpenAI 兼容的 /v1/embeddings
-   * ollama = 本机 Ollama
-   * hash   = 零依赖兜底向量。只在本地模型加载失败时自动降级，不建议主动选。
-   */
-  provider: z.enum(['local', 'openai', 'ollama', 'hash']).default('local'),
-  model: z.string().default('Xenova/multilingual-e5-small'),
-  baseUrl: z.string().optional(),
-  apiKey: z.string().optional(),
-  apiKeyEnv: z.string().optional(),
-  dimensions: z.number().int().default(384),
-  batchSize: z.number().int().default(16),
-  /**
-   * 推理并发数。onnxruntime 单条推理已吃满多核，并发过高只会互相抢 CPU，
-   * 反而拖慢整体吞吐 —— 2 是实测下来的平衡点。
-   */
-  concurrency: z.number().int().min(1).max(8).default(2),
-})
-export type EmbeddingConfig = z.infer<typeof EmbeddingConfig>
-
-/**
- * 会话日志导入 —— **不是**主路径，默认关闭。
- *
- * 记忆的正常来源是 agent 通过 MCP 的 remember 主动写入：它在对话里判断
- * 什么值得长期留存，然后只写这一条。把本地会话日志整个扒一遍是相反的思路，
- * 会把大量一次性上下文灌进知识库，检索质量反而被稀释。
- *
- * 这里保留它，是为了让用户能一次性回捞历史沉淀（「我用了半年 Claude Code，
- * 之前的东西不想丢」）。它是用户手动触发的导入动作，不是后台常驻的抓取。
- */
-export const IngestConfig = z.object({
-  enabled: z.boolean().default(false),
-  /** 每个 agent 单独开关 + 自定义路径 */
-  sources: z
-    .object({
-      'claude-code': z.object({ enabled: z.boolean().default(true), path: z.string().optional() }),
-      codex: z.object({ enabled: z.boolean().default(true), path: z.string().optional() }),
-      opencode: z.object({ enabled: z.boolean().default(true), path: z.string().optional() }),
-      pi: z.object({ enabled: z.boolean().default(true), path: z.string().optional() }),
-    })
-    .default({
-      'claude-code': { enabled: true },
-      codex: { enabled: true },
-      opencode: { enabled: true },
-      pi: { enabled: true },
-    }),
-  /** 轮询间隔（毫秒）。文件监听之外的兜底扫描 */
-  pollIntervalMs: z.number().int().default(60_000),
-  /** 只处理最近 N 天的会话，避免首次启动就啃完几个 G 的历史 */
-  lookbackDays: z.number().int().default(30),
-  /** 会话至少要有这么多条消息才值得提取记忆 */
-  minMessages: z.number().int().default(4),
-  /** 排除这些目录下的会话（临时目录、worktree 之类） */
-  excludePaths: z.array(z.string()).default(['/private/tmp', '/tmp']),
-})
-export type IngestConfig = z.infer<typeof IngestConfig>
-
-export const ExtractionConfig = z.object({
-  /** 低于此置信度的记忆进 pending 队列，等用户在桌面端确认 */
-  autoAcceptThreshold: z.number().min(0).max(1).default(0.75),
-  /** 单次会话最多提取多少条记忆，防止 LLM 话痨 */
-  maxMemoriesPerConversation: z.number().int().default(12),
-  /** 相似度高于此值视为重复，走合并而非新建 */
-  dedupeThreshold: z.number().min(0).max(1).default(0.92),
-  /** 检测到凭据类内容时，是否直接存为 secret（强烈建议开启） */
-  redactCredentials: z.boolean().default(true),
-})
-export type ExtractionConfig = z.infer<typeof ExtractionConfig>
-
-/**
- * 主动记忆的准入策略 —— 决定 agent 递过来的东西够不够格进知识库。
- *
- * 「不是什么都要进知识库」这条产品原则，最终要落成可执行的规则，
- * 否则接了 MCP 的 agent 会把每次对话的边角料都塞进来。
- */
-export const CaptureConfig = z.object({
-  /** 低于此长度的内容直接拒绝 —— 「好的」「已修复」这类没有留存价值 */
-  minContentLength: z.number().int().default(24),
-  /**
-   * 与既有记忆相似度高于此值时，走更新而不是新建。
-   * 比 extraction.dedupeThreshold 松一些：主动写入通常是对旧知识的修订。
-   */
-  supersedeThreshold: z.number().min(0).max(1).default(0.88),
-  /** 单个 agent 会话最多写入多少条，防止某次对话刷屏 */
-  maxPerSession: z.number().int().default(8),
-  /**
-   * 由 LLM 二次把关：判断这条内容是否具备跨会话的长期价值。
-   * 关掉后只跑长度与去重这类硬规则，写入更快但更容易进噪音。
-   */
-  llmGatekeeper: z.boolean().default(true),
-  /** 未通过把关的写入是否留在待审队列，而不是静默丢弃 */
-  queueRejected: z.boolean().default(true),
-})
-export type CaptureConfig = z.infer<typeof CaptureConfig>
-
-/**
- * 文件目录知识库 —— 三层知识库里的最底层。
- *
- * 指向用户本地的文档目录（笔记、规范、设计文档），文件内容按块索引进 RAG。
- * 与记忆层的区别：这里是**只读镜像**，用户在编辑器里改文件，Mycelia 负责跟随，
- * 从不反向写回。文件才是事实来源。
- */
 export const KnowledgeSource = z.object({
   id: z.string(),
   name: z.string(),
@@ -180,6 +64,17 @@ export const KnowledgeConfig = z.object({
   maxFileSizeKb: z.number().int().default(512),
   /** 文档检索在混合召回里的权重 */
   weight: z.number().min(0).max(1).default(0.5),
+  /**
+   * 把目录里的图片也索引进来。
+   *
+   * 默认关：图片索引依赖识图模型，每张图一次 API 调用 —— 挂载一个装着
+   * 几千张截图的目录，费用和耗时都不是小数。想要的人自己开。
+   *
+   * 开启但没配识图模型时只登记文件名，检索能按文件名找到，但看不见内容。
+   */
+  indexImages: z.boolean().default(false),
+  /** 单张图上限。超大图对识图质量没有增益，只会更慢更贵 */
+  maxImageSizeKb: z.number().int().default(8192),
 })
 export type KnowledgeConfig = z.infer<typeof KnowledgeConfig>
 
@@ -210,6 +105,7 @@ export type RetrievalConfig = z.infer<typeof RetrievalConfig>
 export const Config = z.object({
   version: z.literal(1).default(1),
   llm: LlmProviderConfig.default({}),
+  vision: VisionConfig.default({}),
   embedding: EmbeddingConfig.default({}),
   ingest: IngestConfig.default({}),
   extraction: ExtractionConfig.default({}),
@@ -224,6 +120,8 @@ export const Config = z.object({
   theme: z.enum(['system', 'dark', 'light']).default('system'),
 })
 export type Config = z.infer<typeof Config>
+export { CaptureConfig, ExtractionConfig, IngestConfig } from './config-capture.js'
+export { EmbeddingConfig, LlmProtocol, VisionConfig } from './config-models.js'
 
 /**
  * 文本模型凭据只从环境变量取，代码里不留任何默认值。

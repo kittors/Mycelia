@@ -15,6 +15,7 @@
 
 import type { MemoryService } from '@mycelia/core'
 import type { Scheduler } from '@mycelia/daemon'
+import { registerAssetHandlers } from './assets.js'
 import { registerDashboardHandlers } from './dashboard.js'
 import { registerKnowledgeHandlers } from './knowledge.js'
 import { registerMemoryHandlers } from './memory.js'
@@ -32,4 +33,5 @@ export function registerHandlers(service: MemoryService, scheduler: Scheduler): 
   registerDashboardHandlers(handle, service)
   registerVaultHandlers(handle, service)
   registerSystemHandlers(handle, service, scheduler)
+  registerAssetHandlers(handle, service)
 }

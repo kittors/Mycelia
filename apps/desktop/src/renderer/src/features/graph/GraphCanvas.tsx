@@ -16,6 +16,7 @@ import { profileFor } from './canvas/scale.js'
 import { graphUnit } from './canvas/unit.js'
 import { fadeEdge, type GraphPalette, readPalette } from './graph-theme.js'
 import { useCanvasHandle } from './useCanvasHandle.js'
+import { useContainerReady } from './useContainerReady.js'
 
 export type { ColorMode } from './canvas/highlight.js'
 
@@ -91,6 +92,8 @@ export function GraphCanvas({
   const idleRef = useRef<IdleMotion | null>(null)
   /** 就地重排用。存起来是为了不必把整个 effect 的局部变量都提出去 */
   const relayoutRef = useRef<() => void>(() => undefined)
+  // 容器没尺寸时先别建渲染器，原因见 useContainerReady
+  const containerReady = useContainerReady(container)
 
   // 这些值在 Sigma 的 reducer 里被读取，用 ref 而不是闭包捕获
   const edgeKindsRef = useRef(edgeKinds)
@@ -146,7 +149,7 @@ export function GraphCanvas({
   // ── 建图与渲染。只在数据或主题变化时重建 ──
   // biome-ignore lint/correctness/useExhaustiveDependencies: 重建代价极高，依赖是刻意收窄的
   useEffect(() => {
-    if (!container.current || snapshot.nodes.length === 0) return
+    if (!container.current || snapshot.nodes.length === 0 || !containerReady) return
 
     const palette = readPalette()
     paletteRef.current = palette
@@ -276,7 +279,7 @@ export function GraphCanvas({
       graphRef.current = null
       renderer.kill()
     }
-  }, [snapshot, themeKey])
+  }, [snapshot, themeKey, containerReady])
 
   return <div ref={container} className="absolute inset-0" />
 }

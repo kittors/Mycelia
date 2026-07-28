@@ -201,6 +201,16 @@ export interface MyceliaApi {
   listDocuments(sourceId: string): Promise<StoredDocument[]>
   /** 取整篇文档的正文，用于「查看原文」 */
   readDocument(documentId: string): Promise<{ document: StoredDocument; text: string } | null>
+  /** 已用过的标签及其频次，写入记忆时作为候选 */
+  listTags(): Promise<Array<{ tag: string; count: number; color?: string; label?: string }>>
+  /** 存一张图，返回可直接写进 Markdown 的 asset:// 地址 */
+  saveImage(input: { base64: string; ext: string }): Promise<{ url: string; name: string }>
+  /** 让视觉模型描述一张图，用于让图片可被检索 */
+  describeImage(input: {
+    base64: string
+    mime: string
+    hint?: string
+  }): Promise<{ text: string; enabled: boolean }>
   /** 存下图谱布局坐标，下次进入直接复用 */
   saveGraphLayout(points: ReadonlyArray<{ id: string; x: number; y: number }>): Promise<void>
   /** 清空布局，下次进入重新排布 */

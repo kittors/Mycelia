@@ -17,7 +17,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { extname } from 'node:path'
 import type { Embedder } from '@mycelia/embed'
-import type { LlmProvider } from '@mycelia/llm'
+import { createVision, type LlmProvider, type VisionProvider } from '@mycelia/llm'
 import type { Config } from '@mycelia/shared'
 import { createLogger, mapLimit } from '@mycelia/shared'
 import type { MyceliaStore, StoredSource } from '@mycelia/store'
@@ -28,6 +28,7 @@ import {
   needsSemanticContext,
   summarizeDocument,
 } from './context.js'
+import { indexImage } from './index-image.js'
 import { extractTitle, type ScannedFile, scanDirectory } from './scan.js'
 
 const log = createLogger('core:knowledge:indexer')
@@ -66,6 +67,11 @@ export class DocumentIndexer {
     private readonly embedder: Embedder,
     private readonly llm: LlmProvider,
     private readonly config: Config,
+    /** 识图。没配就是个空实现，图片只登记文件名 */
+    private readonly vision: VisionProvider = createVision(
+      { ...config.vision, enabled: false },
+      { baseUrl: '' },
+    ),
   ) {}
 
   /** 索引一个知识源。返回统计供 UI 展示 */
@@ -86,7 +92,9 @@ export class DocumentIndexer {
     this.store.sources.setStatus(source.id, 'indexing')
 
     try {
-      const files = await scanDirectory(source)
+      const files = await scanDirectory(source, {
+        includeImages: this.config.knowledge.indexImages,
+      })
       result.scannedFiles = files.length
 
       // 磁盘上已经没有的文件，把索引一并清掉 —— 否则检索会命中幽灵文档
@@ -144,6 +152,20 @@ export class DocumentIndexer {
     file: ScannedFile,
     opts: IndexOptions,
   ): Promise<{ skipped: boolean; chunkCount: number; contextualized: number }> {
+    if (file.isImage) {
+      return indexImage(
+        {
+          store: this.store,
+          config: this.config,
+          vision: this.vision,
+          ingestText: (...args) => this.ingestText(...args),
+        },
+        source,
+        file,
+        opts,
+      )
+    }
+
     const raw = await readFile(file.absPath, 'utf8')
     const contentHash = createHash('sha256').update(raw).digest('hex')
 

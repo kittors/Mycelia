@@ -15,12 +15,27 @@ interface ScannedFile {
   relPath: string
   sizeBytes: number
   mtime: number
+  /** 二进制图片走另一条索引路径：读不出文本，得先让视觉模型转述 */
+  isImage: boolean
 }
 
 export type { ScannedFile }
 
-export async function scanDirectory(source: StoredSource): Promise<ScannedFile[]> {
+/** 能交给视觉模型的格式。不含 svg —— 它是可执行的标记，不是位图 */
+export const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif'])
+
+export function isImageExt(ext: string): boolean {
+  return IMAGE_EXTENSIONS.has(ext.toLowerCase().replace(/^\./, ''))
+}
+
+export async function scanDirectory(
+  source: StoredSource,
+  options: { includeImages?: boolean } = {},
+): Promise<ScannedFile[]> {
   const extensions = new Set(source.extensions.map((e) => e.toLowerCase().replace(/^\./, '')))
+  // 图片不受 source.extensions 约束：那个列表是给文本格式用的，
+  // 用户配 ['md'] 时并不意味着他不想要图
+  if (options.includeImages) for (const ext of IMAGE_EXTENSIONS) extensions.add(ext)
   const exclude = source.exclude
   const out: ScannedFile[] = []
 
@@ -54,6 +69,7 @@ export async function scanDirectory(source: StoredSource): Promise<ScannedFile[]
           relPath: relative(source.path, full),
           sizeBytes: info.size,
           mtime: info.mtimeMs,
+          isImage: isImageExt(ext),
         })
       } catch {
         /* 文件刚被删掉，忽略 */

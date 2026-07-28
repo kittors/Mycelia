@@ -31,6 +31,15 @@ export function createRenderer(
     enableEdgeEvents: false,
     hideEdgesOnMove: profile.hideEdgesOnMove,
     zIndex: true,
+    /**
+     * 容器还没算出宽度时不要抛异常。
+     *
+     * Sigma 默认在零宽容器上 throw，而这个异常会顺着 React 的渲染栈
+     * 一路炸上去，整棵组件树卸载 —— 表现就是白屏。触发场景比想象的多：
+     * 应用启动时正好停在图谱页、窗口从最小化恢复、布局还差一帧。
+     * 图画不出来是小事，整个应用没了是大事。
+     */
+    allowInvalidContainer: true,
     stagePadding: 60,
     minCameraRatio: 0.06,
     maxCameraRatio: 6,

@@ -11,6 +11,7 @@
  * 整个界面的字距和字重跟着变一遍，比不用自定义字体还糟。
  */
 @import "@fontsource-variable/inter";
+@import "katex/dist/katex.min.css";
 @import "./tokens.css";
 
 /**
@@ -51,6 +52,8 @@
 
   input,
   textarea,
+  [contenteditable],
+  [contenteditable] *,
   [data-selectable] {
     user-select: text;
   }
@@ -354,4 +357,183 @@
     transition-duration: 0.01ms !important;
     /* biome-ignore-end lint/complexity/noImportantStyles: 无障碍覆盖必须压过内联样式 */
   }
+}
+
+/**
+ * 富文本编辑器的排版。
+ *
+ * 不引 typography 插件：那套默认值是给文章页设计的，行高和间距都偏大，
+ * 放进这种密度的工具界面里会显得松垮。这里只定必要的几项，
+ * 与界面其余部分的节奏保持一致。
+ */
+.prose-mycelia {
+  color: var(--text);
+}
+.prose-mycelia > * + * {
+  margin-top: 0.7em;
+}
+.prose-mycelia h1,
+.prose-mycelia h2,
+.prose-mycelia h3 {
+  font-weight: 600;
+  line-height: 1.35;
+  margin-top: 1.4em;
+}
+.prose-mycelia h1 {
+  font-size: 1.35em;
+}
+.prose-mycelia h2 {
+  font-size: 1.18em;
+}
+.prose-mycelia h3 {
+  font-size: 1.05em;
+}
+.prose-mycelia ul,
+.prose-mycelia ol {
+  padding-left: 1.35em;
+}
+.prose-mycelia ul {
+  list-style: disc;
+}
+.prose-mycelia ol {
+  list-style: decimal;
+}
+.prose-mycelia li > p {
+  margin: 0;
+}
+.prose-mycelia blockquote {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 0.9em;
+  color: var(--text-muted);
+}
+.prose-mycelia code {
+  background: var(--sunken);
+  border-radius: var(--radius-xs);
+  padding: 0.1em 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.prose-mycelia pre {
+  background: var(--sunken);
+  border-radius: var(--radius-sm);
+  padding: 0.7em 0.9em;
+  overflow-x: auto;
+  font-size: 0.92em;
+}
+.prose-mycelia pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 1em;
+}
+.prose-mycelia table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.prose-mycelia th,
+.prose-mycelia td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.prose-mycelia th {
+  background: var(--sunken);
+  font-weight: 600;
+}
+.prose-mycelia hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.2em 0;
+}
+.prose-mycelia img {
+  margin: 0.5em 0;
+}
+
+/* 占位文字：只在文档为空时出现在第一行 */
+.prose-mycelia p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/**
+ * 代码高亮配色。
+ *
+ * 不引 highlight.js 自带的主题：那些是给网页设计的，色相饱和度都偏高，
+ * 放进这套中性界面里像打翻了调色盘。这里只用四档灰加两个点缀色，
+ * 够区分结构就行 —— 读代码靠的是缩进和结构，不是颜色。
+ */
+.prose-mycelia .hljs-comment,
+.prose-mycelia .hljs-quote {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.prose-mycelia .hljs-keyword,
+.prose-mycelia .hljs-selector-tag,
+.prose-mycelia .hljs-built_in {
+  color: var(--kind-preference);
+}
+.prose-mycelia .hljs-string,
+.prose-mycelia .hljs-attr {
+  color: var(--kind-howto);
+}
+.prose-mycelia .hljs-number,
+.prose-mycelia .hljs-literal {
+  color: var(--kind-decision);
+}
+.prose-mycelia .hljs-title,
+.prose-mycelia .hljs-name,
+.prose-mycelia .hljs-function {
+  color: var(--kind-fact);
+}
+.prose-mycelia .hljs-variable,
+.prose-mycelia .hljs-params {
+  color: var(--text);
+}
+
+/* 公式：行内的跟文字同一基线，独立成块的居中留白 */
+.prose-mycelia .katex {
+  font-size: 1.05em;
+}
+.prose-mycelia .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* GFM 任务列表：勾选框跟文字同一基线，条目不再带项目符号 */
+.prose-mycelia li:has(> .task-check) {
+  list-style: none;
+  margin-left: -1.15em;
+}
+.prose-mycelia .task-check {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 0.5em;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+.prose-mycelia .task-check.is-done {
+  border-color: var(--accent);
+  background: var(--accent);
+  position: relative;
+}
+/* 勾用两条边框转 45 度画出来，省一个 svg */
+.prose-mycelia .task-check.is-done::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 0.5px;
+  width: 3px;
+  height: 6.5px;
+  border: solid var(--accent-text, #fff);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.prose-mycelia li:has(> .task-check.is-done) {
+  color: var(--text-muted);
 }

@@ -1,7 +1,7 @@
 import type { MemoryKind, Sensitivity } from '@mycelia/shared'
 import { type FormEvent, useState } from 'react'
 import { KIND_LABELS, SENSITIVITY_LABELS } from '../../shared/lib/labels.js'
-import { Button, Drawer, Field, Input, Select, Textarea } from '../../shared/ui/index.js'
+import { Button, Drawer, Field, Input, Select, TagPicker, Textarea } from '../../shared/ui/index.js'
 import { useApp } from '../../store/app-store.js'
 
 export function MemoryComposer() {
@@ -12,7 +12,7 @@ export function MemoryComposer() {
   const [content, setContent] = useState('')
   const [kind, setKind] = useState<MemoryKind>('fact')
   const [sensitivity, setSensitivity] = useState<Sensitivity>('private')
-  const [tags, setTags] = useState('')
+  const [tags, setTags] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -29,7 +29,7 @@ export function MemoryComposer() {
         title: title.trim(),
         content: content.trim(),
         kind,
-        tags: tags.split(/[,，\s]+/).filter(Boolean),
+        tags,
         sensitivity: effectiveSensitivity,
         importance: 0.7,
       })
@@ -108,12 +108,8 @@ export function MemoryComposer() {
           </Field>
         </div>
 
-        <Field label="标签" hint="层级形式，如 infra/ssh。空格或逗号分隔">
-          <Input
-            value={tags}
-            onChange={(event) => setTags(event.target.value)}
-            placeholder="infra/ssh deploy"
-          />
+        <Field label="标签" hint="层级形式，如 infra/ssh。优先选已有的，避免同义标签各立门户">
+          <TagPicker value={tags} onChange={setTags} />
         </Field>
 
         {error && <p className="text-[12px] text-danger">{error}</p>}

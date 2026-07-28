@@ -3,9 +3,9 @@ import { useAsync, useDebounced } from '../../shared/hooks/useAsync.js'
 import { relativeTime } from '../../shared/lib/format.js'
 import { Button, Empty, Icon, IconButton, Input, Spinner } from '../../shared/ui/index.js'
 import { useApp } from '../../store/app-store.js'
+import { DocumentEditor } from './DocumentEditor.js'
 import { DocumentList, SearchResults } from './DocumentLists.js'
 import { DocumentReader } from './DocumentReader.js'
-import { NoteComposer } from './NoteComposer.js'
 import { SourceList } from './SourceList.js'
 
 /**
@@ -23,6 +23,8 @@ export function KnowledgeView() {
   const [query, setQuery] = useState('')
   const [openDocId, setOpenDocId] = useState<string | null>(null)
   const [composing, setComposing] = useState(false)
+  /** 正在编辑的手记 id。null 表示新建 */
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const debouncedQuery = useDebounced(query)
 
@@ -65,11 +67,11 @@ export function KnowledgeView() {
 
   if (!sourcesLoading && !hasSources) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="relative flex items-center justify-center h-full">
         <Empty
           icon={<Icon name="library" size={30} />}
-          title="挂载一个文档目录"
-          description="笔记、规范、设计文档 —— 目录里的内容会被切分索引，agent 通过 search_docs 就能检索到原文。文件始终以磁盘为准，Mycelia 只读不写。"
+          title="还没有文档"
+          description="两条路：挂载一个已有的目录，Mycelia 只读不写地为它建索引；或者直接在这里新建一篇，写完同样会被切分、向量化。两者在检索时是平等的。"
           action={
             <div className="flex items-center gap-2">
               <Button variant="primary" icon={<Icon name="plus" size={14} />} onClick={addSource}>
@@ -77,18 +79,26 @@ export function KnowledgeView() {
               </Button>
               {/* 手边没有现成目录时也得有路可走，否则空知识库是个死胡同 */}
               <Button icon={<Icon name="edit" size={14} />} onClick={() => setComposing(true)}>
-                手写一篇
+                新建文档
               </Button>
             </div>
           }
         />
-        {composing && <NoteComposer onClose={() => setComposing(false)} onSaved={setOpenDocId} />}
+        {composing && (
+          <DocumentEditor
+            onClose={() => setComposing(false)}
+            onSaved={(id) => {
+              setComposing(false)
+              setOpenDocId(id)
+            }}
+          />
+        )}
       </div>
     )
   }
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="relative flex h-full min-h-0">
       <SourceList
         sources={sources ?? []}
         loading={sourcesLoading}
@@ -118,7 +128,7 @@ export function KnowledgeView() {
             icon={<Icon name="edit" size={13} />}
             onClick={() => setComposing(true)}
           >
-            手写
+            新建文档
           </Button>
           {searching && <Spinner className="text-faint" />}
           {indexing && (
@@ -145,9 +155,30 @@ export function KnowledgeView() {
         </div>
       </div>
 
-      {openDocId && <DocumentReader documentId={openDocId} onClose={() => setOpenDocId(null)} />}
+      {openDocId && (
+        <DocumentReader
+          documentId={openDocId}
+          onClose={() => setOpenDocId(null)}
+          onEdit={() => {
+            setEditingId(openDocId)
+            setComposing(true)
+            setOpenDocId(null)
+          }}
+        />
+      )}
       {composing && (
-        <NoteComposer onClose={() => setComposing(false)} onSaved={(id) => setOpenDocId(id)} />
+        <DocumentEditor
+          documentId={editingId ?? undefined}
+          onClose={() => {
+            setComposing(false)
+            setEditingId(null)
+          }}
+          onSaved={(id) => {
+            setComposing(false)
+            setEditingId(null)
+            setOpenDocId(id)
+          }}
+        />
       )}
     </div>
   )
