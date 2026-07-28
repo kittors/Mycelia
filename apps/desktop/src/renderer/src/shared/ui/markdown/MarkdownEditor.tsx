@@ -2,12 +2,13 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { EditorView } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { cn } from '../../lib/cn.js'
 import { Icon } from '../Icon.js'
 import { frontMatter } from './frontmatter.js'
 import { renderMarkdown } from './render.js'
 import { editorTheme } from './theme.js'
+import { frontMatterLines, useFrontMatterAlign } from './useFrontMatterAlign.js'
 import { useImagePaste } from './useImagePaste.js'
 import { useSyncScroll } from './useSyncScroll.js'
 
@@ -57,6 +58,8 @@ export function MarkdownEditor({
   )
 
   const html = useMemo(() => (view === 'write' ? '' : renderMarkdown(value)), [value, view])
+  const previewRef = useRef<HTMLDivElement>(null)
+  useFrontMatterAlign(pane.left, previewRef, frontMatterLines(value), view === 'split')
 
   return (
     <div
@@ -125,8 +128,12 @@ export function MarkdownEditor({
             )}
           >
             {value.trim() ? (
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: 已过 DOMPurify，见 render.ts
-              <div className="prose-mycelia" dangerouslySetInnerHTML={{ __html: html }} />
+              <div
+                ref={previewRef}
+                className="prose-mycelia"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: 已过 DOMPurify，见 render.ts
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
             ) : (
               <p className="text-[12px] text-faint">预览会显示在这里</p>
             )}
