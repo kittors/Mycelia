@@ -42,7 +42,11 @@ const SPRING = 0.35
 /** 邻域内的排斥力强度，防止跟随过来的节点叠在一起 */
 const REPEL = 1.4
 
-/** 边的理想长度相对两端半径之和的倍数 */
+/**
+ * 边的理想长度相对两端半径之和的倍数。
+ *
+ * 只在兜底时用到 —— 正常情况下 rest 取边的当前实际长度，见下面的说明。
+ */
 const LINK_SLACK = 4.5
 
 /** 与 decluster.ts 的 padding 保持一致，单位是屏幕像素 */
@@ -124,11 +128,31 @@ export function startDragSimulation(
       const a = index.get(key)
       const b = index.get(neighbor)
       if (a === undefined || b === undefined || a >= b) continue
-      const ra = bodies[a]?.r ?? unit * 3
-      const rb = bodies[b]?.r ?? unit * 3
-      links.push({ a, b, rest: (ra + rb) * LINK_SLACK })
+      const na = bodies[a] as Body
+      const nb = bodies[b] as Body
+      /**
+       * 理想长度取**当前实际长度**，而不是按半径算一个理论值。
+       *
+       * 这是整个拖拽手感的关键。布局是 ForceAtlas2 排的，它的平衡态跟这里
+       * 这套弹簧-斥力模型完全不是一回事；用理论值当 rest，等于一按下节点就
+       * 告诉仿真「现在每条边都不对」，于是它开始把整张图重排 ——
+       * 表现就是手指还没动，所有点先乱跳一通。
+       *
+       * 取当前长度，按下的那一刻所有边都恰好在平衡态、合力为零，图纹丝不动。
+       * 之后邻居移动纯粹是因为你把节点拖走了，这才是「跟手」。
+       */
+      const current = Math.hypot(nb.x - na.x, nb.y - na.y)
+      links.push({ a, b, rest: current || (na.r + nb.r) * LINK_SLACK })
     }
   }
+
+  /**
+   * 按下那一刻的两两间距。
+   *
+   * 斥力拿它当下限：布局已经把这些节点安置好了，哪怕某两个挨得比理论
+   * 间距还近，那也是既成事实，不该在按下的瞬间被推开。
+   */
+  const spacing: number[][] = bodies.map((a) => bodies.map((b) => Math.hypot(b.x - a.x, b.y - a.y)))
 
   const fixed = bodies[index.get(anchor) ?? 0] as Body
   let target = { x: fixed.x, y: fixed.y }
@@ -172,8 +196,15 @@ export function startDragSimulation(
         const dx = b.x - a.x
         const dy = b.y - a.y
         const distance = Math.hypot(dx, dy) || 1e-6
-        // 与收尾的 declusterNodes 用同一套间距标准，拖完不会比静止时更挤
-        const minimum = a.r + b.r + DECLUSTER_PADDING * unit
+        /**
+         * 间距标准取「理论值」与「当前实际间距」中较小的那个。
+         *
+         * 只用理论值的话，凡是当前挨得比它近的一对节点，在按下的瞬间
+         * 就会被推开 —— 而它们本来是布局排好的，没有理由动。取当前值
+         * 作为下限，等于承认「现在这样就是可以的」，斥力只在拖动
+         * **把它们挤得更近**时才介入。
+         */
+        const minimum = Math.min(a.r + b.r + DECLUSTER_PADDING * unit, spacing[i]?.[j] ?? Infinity)
         if (distance >= minimum) continue
         const force = ((minimum - distance) / distance) * REPEL * alpha
         a.vx -= dx * force
@@ -212,8 +243,13 @@ export function startDragSimulation(
     raf = requestAnimationFrame(tick)
   }
 
-  raf = requestAnimationFrame(tick)
-
+  /**
+   * 按下时不启动循环。
+   *
+   * 原来这里立刻起 RAF，注释说「空转几帧然后自己静下来」—— 但它不是空转：
+   * 每一帧都在给全图施加弹簧力和斥力。手指还没动，图已经被重排了一轮。
+   * 真正开始拖（第一次 moveTo）时才点火。
+   */
   return {
     moveTo(x, y) {
       target = { x, y }
