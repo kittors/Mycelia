@@ -68,18 +68,61 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 })
 
 /**
- * 剥掉开头的 front matter。
+ * front matter 渲染成属性表。
  *
- * 那几行是给机器读的元数据，不是正文。留着的话 Markdown 解析器会把
- * `name: xxx` 上面那道 `---` 当成 setext 标题的下划线，于是元数据被渲染成
- * 一大块加粗文字压在文章开头 —— 既难看又完全没用。
+ * 既不能原样交给 Markdown 解析器（那道 `---` 会被当成 setext 标题的下划线，
+ * 元数据变成一大块加粗文字压在开头），也不该直接丢掉 —— 里面的 name、
+ * description、type 是这篇文档的身份信息，正是「这篇在讲什么」的最短答案。
+ *
+ * 自己解析而不是引 YAML 库：front matter 在实际笔记里九成是平铺的
+ * `键: 值`，为这点结构背一个解析器不划算。遇到真正复杂的 YAML
+ * （数组、多行字符串）就整块原样显示，至少不会错。
  */
-function stripFrontMatter(source: string): string {
-  return source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+function splitFrontMatter(source: string): { meta: string; body: string } {
+  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/)
+  if (!match?.[1]) return { meta: '', body: source }
+
+  const rows: Array<[string, string]> = []
+  let prefix = ''
+  for (const raw of match[1].split(/\r?\n/)) {
+    if (!raw.trim() || raw.trimStart().startsWith('#')) continue
+    const pair = raw.match(/^(\s*)([^:]+):\s*(.*)$/)
+    if (!pair) return { meta: '', body: source.slice(match[0].length) }
+
+    const [, indent = '', key = '', value = ''] = pair
+    if (!value) {
+      // 「metadata:」这种只有键没有值的，是下一层的容器
+      prefix = indent ? prefix : `${key.trim()}.`
+      continue
+    }
+    rows.push([indent ? `${prefix}${key.trim()}` : key.trim(), value.trim()])
+  }
+
+  const meta = rows
+    .map(
+      ([key, value]) =>
+        `<div class="fm-row"><span class="fm-key">${escape(key)}</span>` +
+        `<span class="fm-value">${escape(value)}</span></div>`,
+    )
+    .join('')
+
+  return {
+    meta: meta ? `<div class="front-matter">${meta}</div>` : '',
+    body: source.slice(match[0].length),
+  }
+}
+
+/** 属性值直接进 HTML，得先转义 —— 它随后还要过 DOMPurify，但不该指望下游兜底 */
+function escape(text: string): string {
+  return text.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
+  )
 }
 
 export function renderMarkdown(source: string): string {
-  const html = marked.parse(stripFrontMatter(source), { async: false })
+  const { meta, body } = splitFrontMatter(source)
+  const html = meta + marked.parse(body, { async: false })
   return DOMPurify.sanitize(html, {
     // KaTeX 输出大量 MathML 与带样式的 span，默认白名单会把它们剥光
     USE_PROFILES: { html: true, mathMl: true, svg: true },

@@ -590,3 +590,34 @@
 .prose-mycelia li:has(> .task-check.is-done) {
   color: var(--text-muted);
 }
+
+/**
+ * front matter 的属性表。
+ *
+ * 排在正文之前、视觉重量低于正文：它是这篇文档的标签，不是内容本身。
+ * 用两列而不是「键：值」一行到底 —— 键对齐之后可以竖着扫，
+ * 而混在一行里只能一条条读。
+ */
+.prose-mycelia .front-matter {
+  margin-bottom: var(--md-line);
+  padding: 0.5em 0.75em;
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+  font-size: 0.92em;
+}
+.prose-mycelia .fm-row {
+  display: flex;
+  gap: 0.75em;
+  line-height: 1.6;
+}
+.prose-mycelia .fm-key {
+  flex: 0 0 auto;
+  min-width: 5.5em;
+  color: var(--text-faint);
+}
+.prose-mycelia .fm-value {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
