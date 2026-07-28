@@ -44,7 +44,11 @@ try {
     cwd: join(root, 'apps/desktop'),
     encoding: 'utf8',
   })
-  appPath = join(dirname(entry), 'dist', 'Electron.app')
+  const dist = join(dirname(entry), 'dist')
+  // 改过名之后就叫 Mycelia.app 了，两个都要认
+  appPath = existsSync(join(dist, `${NAME}.app`))
+    ? join(dist, `${NAME}.app`)
+    : join(dist, 'Electron.app')
 } catch {
   process.exit(0)
 }
@@ -73,6 +77,7 @@ const set = (key, value) => {
 // 已经改过就直接走 —— 重签整个 bundle 要好几秒，不该每次 pnpm dev 都付这个代价
 if (
   !restore &&
+  appPath.endsWith(`${NAME}.app`) &&
   read('CFBundleName') === NAME &&
   read('CFBundleExecutable') === NAME &&
   read('CFBundleIdentifier') === 'dev.mycelia.app'
@@ -93,6 +98,11 @@ if (restore) {
   const pathFile = resolve(appPath, '..', '..', 'path.txt')
   if (existsSync(pathFile)) {
     writeFileSync(pathFile, `Electron.app/Contents/MacOS/Electron`)
+  }
+  // 目录名也要还原：electron-builder 找的是 dist/Electron.app
+  const originalApp = join(dirname(appPath), 'Electron.app')
+  if (appPath !== originalApp && !existsSync(originalApp)) {
+    renameSync(appPath, originalApp)
   }
   try {
     execFileSync('codesign', ['--force', '--sign', '-', '--deep', appPath], { stdio: 'ignore' })
@@ -139,6 +149,20 @@ const target = join(appPath, 'Contents', 'Resources', 'electron.icns')
 if (existsSync(icon) && existsSync(target)) copyFileSync(icon, target)
 
 /**
+ * 连 .app 目录一起改名。
+ *
+ * 这是最后一块拼图，也是 VS Code 的做法（他们把 Electron.app 改成
+ * Code - OSS.app）。只改 Info.plist 是不够的 —— 直接执行 bundle 里的
+ * 二进制时，系统并不会把它当成一个正式启动的应用去读 plist，
+ * Dock 于是退回用 .app 的目录名，也就是「Electron」。
+ */
+const renamedApp = join(dirname(appPath), `${NAME}.app`)
+if (appPath !== renamedApp) {
+  renameSync(appPath, renamedApp)
+  appPath = renamedApp
+}
+
+/**
  * electron 包用 path.txt 记录二进制的位置，`electron` 命令读它来启动。
  * 不改这里的话，启动走的仍是那个软链，argv[0] 还是 Electron ——
  * 而 macOS 的进程名取自 argv[0]，不解析软链。
@@ -146,8 +170,8 @@ if (existsSync(icon) && existsSync(target)) copyFileSync(icon, target)
 const pathFile = resolve(appPath, '..', '..', 'path.txt')
 if (existsSync(pathFile)) {
   const current = readFileSync(pathFile, 'utf8').trim()
-  if (current.endsWith('/Electron')) {
-    writeFileSync(pathFile, current.replace(/\/Electron$/, `/${NAME}`))
+  if (current !== `${NAME}.app/Contents/MacOS/${NAME}`) {
+    writeFileSync(pathFile, `${NAME}.app/Contents/MacOS/${NAME}`)
   }
 }
 
