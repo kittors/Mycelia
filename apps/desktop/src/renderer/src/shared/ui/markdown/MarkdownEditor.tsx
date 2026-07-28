@@ -5,6 +5,7 @@ import CodeMirror from '@uiw/react-codemirror'
 import { useMemo, useState } from 'react'
 import { cn } from '../../lib/cn.js'
 import { Icon } from '../Icon.js'
+import { frontMatter } from './frontmatter.js'
 import { renderMarkdown } from './render.js'
 import { editorTheme } from './theme.js'
 import { useImagePaste } from './useImagePaste.js'
@@ -45,7 +46,7 @@ export function MarkdownEditor({
 
   const extensions = useMemo(
     () => [
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
+      markdown({ base: markdownLanguage, codeLanguages: languages, extensions: [frontMatter] }),
       EditorView.lineWrapping,
       // 图片粘贴要在 CodeMirror 自己的 paste 处理之前截住
       EditorView.domEventHandlers({

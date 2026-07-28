@@ -29,6 +29,15 @@ try {
   process.exit(0)
 }
 
+/**
+ * 先补签名，再检测。
+ *
+ * 顺序不能反：签名失效时 `new Database()` 会让内核直接 SIGKILL 整个进程 ——
+ * 下面那个 try/catch 根本没机会运行，脚本自己先死了，而且死得悄无声息。
+ * 签名是幂等的，先做一遍不亏。
+ */
+execFileSync('node', [join(root, 'scripts', 'sign-native.mjs')], { stdio: 'inherit' })
+
 try {
   /**
    * 必须真的开一个库。
@@ -56,7 +65,6 @@ execFileSync('npx', ['--yes', 'prebuild-install', '--force'], {
   stdio: 'inherit',
 })
 
-// 换完必须重新签名，否则内核会因为签名与内容不符直接 SIGKILL
+// 新下载的文件带着上一份的签名记录，得再补一次
 execFileSync('node', [join(root, 'scripts', 'sign-native.mjs')], { stdio: 'inherit' })
-
 console.log('已就绪')

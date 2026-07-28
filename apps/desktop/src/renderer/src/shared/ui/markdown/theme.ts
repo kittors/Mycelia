@@ -51,6 +51,8 @@ const highlight = HighlightStyle.define([
   { tag: tags.list, color: 'var(--text-muted)' },
   // 标记符号本身淡化 —— 它们是脚手架，不是内容
   { tag: tags.processingInstruction, color: 'var(--text-faint)' },
+  // front matter 是元数据，压到最不显眼的一档
+  { tag: tags.meta, color: 'var(--text-faint)', fontSize: '0.92em' },
   { tag: tags.contentSeparator, color: 'var(--text-faint)' },
 ])
 
