@@ -13,8 +13,9 @@
  */
 
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -54,4 +55,8 @@ execFileSync('npx', ['--yes', 'prebuild-install', '--force'], {
   cwd: pkgDir,
   stdio: 'inherit',
 })
+
+// 换完必须重新签名，否则内核会因为签名与内容不符直接 SIGKILL
+execFileSync('node', [join(root, 'scripts', 'sign-native.mjs')], { stdio: 'inherit' })
+
 console.log('已就绪')

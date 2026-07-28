@@ -374,7 +374,16 @@
  * 所以下面所有的纵向间距都用 --md-line 的倍数，字号和行高与编辑器
  * 逐项对齐（见 markdown/theme.ts）。
  */
+/**
+ * 预览区绝不横向滚动。
+ *
+ * 长 URL、宽表格、长代码行都会把内容撑得比容器宽，一旦整个预览区跟着
+ * 横滚，正文的左边界就跑出视野 —— 读一行字要来回推两次滚动条。
+ * 该滚的是那一块内容本身（代码块、表格各自滚），不是整篇文章。
+ */
 .prose-mycelia {
+  overflow-wrap: break-word;
+  word-break: break-word;
   --md-font: 13px;
   --md-line: 22.75px;
   font-size: var(--md-font);
@@ -443,6 +452,8 @@
 /* 代码块与表格自带内边距，会比源文高出一截 —— 这是没法消掉的，
    靠同步滚动兜住偏差 */
 .prose-mycelia code {
+  /* 行内代码里常是长 URL 或 token，不允许它撑破容器 */
+  overflow-wrap: anywhere;
   background: var(--sunken);
   border-radius: var(--radius-xs);
   padding: 0.1em 0.35em;
@@ -462,6 +473,9 @@
   font-size: 1em;
 }
 .prose-mycelia table {
+  /* block + auto：让宽表格自己横滚，而不是把整篇文章顶宽 */
+  display: block;
+  overflow-x: auto;
   width: 100%;
   border-collapse: collapse;
   font-size: 0.95em;

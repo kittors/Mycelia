@@ -10,6 +10,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { guardTools } from '../guard.js'
 import type { ToolContext } from './context.js'
 import { registerDigest } from './digest.js'
 import { registerOverview } from './overview.js'
@@ -28,10 +29,13 @@ export { SERVER_INSTRUCTIONS } from './instructions.js'
  * 不如让它一开始就看不见这两个工具。
  */
 export function registerTools(
-  server: McpServer,
+  rawServer: McpServer,
   ctx: ToolContext,
   opts: { allowWrite: boolean },
 ): void {
+  // 所有工具的输出都要过这道闸，见 guard.ts
+  const server = guardTools(rawServer)
+
   registerRecall(server, ctx)
   registerSearchDocs(server, ctx)
   registerRelated(server, ctx)

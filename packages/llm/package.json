@@ -12,6 +12,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@mycelia/shared": "workspace:*"
+    "@mycelia/shared": "workspace:*",
+    "@mycelia/crypto": "workspace:*"
   }
 }

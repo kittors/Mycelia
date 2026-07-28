@@ -5,7 +5,6 @@ import { Button, Empty, Icon, IconButton, Input, Spinner } from '../../shared/ui
 import { useApp } from '../../store/app-store.js'
 import { DocumentEditor } from './DocumentEditor.js'
 import { DocumentList, SearchResults } from './DocumentLists.js'
-import { DocumentReader } from './DocumentReader.js'
 import { SourceList } from './SourceList.js'
 
 /**
@@ -21,7 +20,6 @@ export function KnowledgeView() {
 
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [openDocId, setOpenDocId] = useState<string | null>(null)
   const [composing, setComposing] = useState(false)
   /** 正在编辑的手记 id。null 表示新建 */
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -88,8 +86,8 @@ export function KnowledgeView() {
           <DocumentEditor
             onClose={() => setComposing(false)}
             onSaved={(id) => {
-              setComposing(false)
-              setOpenDocId(id)
+              // 留在这篇上继续看，而不是关掉 —— 刚写完往往还要再改两笔
+              setEditingId(id)
             }}
           />
         )}
@@ -143,29 +141,30 @@ export function KnowledgeView() {
 
         <div className="flex-1 min-h-0 overflow-y-auto border-t border-border px-2 py-2">
           {searchMode ? (
-            <SearchResults hits={hits ?? []} loading={searching} onOpen={setOpenDocId} />
+            <SearchResults
+              hits={hits ?? []}
+              loading={searching}
+              onOpen={(id) => {
+                setEditingId(id)
+                setComposing(true)
+              }}
+            />
           ) : (
             <DocumentList
               documents={documents ?? []}
               loading={docsLoading}
               hasSelection={activeSourceId !== null}
-              onOpen={setOpenDocId}
+              onOpen={(id) => {
+                // 直接进整页视图。抽屉里那份纯文本预览连 Markdown 都不渲染，
+                // front matter 和加粗标记全是生的，而整页视图本来就有渲染能力
+                setEditingId(id)
+                setComposing(true)
+              }}
             />
           )}
         </div>
       </div>
 
-      {openDocId && (
-        <DocumentReader
-          documentId={openDocId}
-          onClose={() => setOpenDocId(null)}
-          onEdit={() => {
-            setEditingId(openDocId)
-            setComposing(true)
-            setOpenDocId(null)
-          }}
-        />
-      )}
       {composing && (
         <DocumentEditor
           documentId={editingId ?? undefined}
@@ -173,11 +172,7 @@ export function KnowledgeView() {
             setComposing(false)
             setEditingId(null)
           }}
-          onSaved={(id) => {
-            setComposing(false)
-            setEditingId(null)
-            setOpenDocId(id)
-          }}
+          onSaved={(id) => setEditingId(id)}
         />
       )}
     </div>

@@ -81,12 +81,6 @@ export function registerKnowledgeHandlers(handle: Handle, service: MemoryService
 
   handle('listDocuments', (sourceId: string) => service.store.documents.bySource(sourceId))
 
-  handle('readDocument', (documentId: string) => {
-    const document = service.store.documents.get(documentId)
-    if (!document) return null
-    return { document, text: service.docSearch.documentText(documentId) }
-  })
-
   handle('searchDocuments', (query: string, opts?: { limit?: number; sourceIds?: string[] }) =>
     service.searchDocuments(query, opts ?? {}),
   )
@@ -96,4 +90,19 @@ export function registerKnowledgeHandlers(handle: Handle, service: MemoryService
   )
 
   handle('readNote', (documentId: string) => service.library.noteText(documentId) ?? null)
+
+  handle('readDocument', async (documentId: string) => {
+    const found = await service.library.documentText(documentId)
+    if (!found) return null
+    return {
+      text: found.text,
+      title: found.document.title,
+      absPath: found.document.absPath,
+      onDisk: found.onDisk,
+    }
+  })
+
+  handle('writeDocument', (documentId: string, text: string) =>
+    service.library.writeDocument(documentId, text),
+  )
 }

@@ -199,8 +199,6 @@ export interface MyceliaApi {
   indexSource(id: string, force?: boolean): Promise<IndexResult>
   cancelIndex(): Promise<void>
   listDocuments(sourceId: string): Promise<StoredDocument[]>
-  /** 取整篇文档的正文，用于「查看原文」 */
-  readDocument(documentId: string): Promise<{ document: StoredDocument; text: string } | null>
   /** 已用过的标签及其频次，写入记忆时作为候选 */
   listTags(): Promise<Array<{ tag: string; count: number; color?: string; label?: string }>>
   /** 存一张图，返回可直接写进 Markdown 的 asset:// 地址 */
@@ -224,6 +222,20 @@ export interface MyceliaApi {
     query: string,
     opts?: { limit?: number; sourceIds?: string[] },
   ): Promise<DocumentHit[]>
+  /**
+   * 读一篇文档的正文供编辑。
+   *
+   * onDisk 为 true 表示正本是磁盘上的文件，保存要走 writeDocument ——
+   * 走 saveNote 会另存成一篇手记，磁盘上那份纹丝不动，改了个寂寞。
+   */
+  readDocument(documentId: string): Promise<{
+    text: string
+    title: string
+    absPath: string
+    onDisk: boolean
+  } | null>
+  /** 把改动写回磁盘原文件并重新索引 */
+  writeDocument(documentId: string, text: string): Promise<{ chunkCount: number }>
   /** 手写一篇知识入库。传 documentId 表示编辑已有的那篇 */
   saveNote(input: {
     title: string

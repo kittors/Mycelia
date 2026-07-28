@@ -39,9 +39,9 @@ export function MarkdownEditor({
   className?: string
   minHeight?: number
 }) {
-  const [mode, setMode] = useState<Mode>('split')
+  const [view, setView] = useState<Mode>('split')
   const { paste, dropping, handlers, busy } = useImagePaste(onChange)
-  const pane = useSyncScroll(mode === 'split')
+  const pane = useSyncScroll(view === 'split')
 
   const extensions = useMemo(
     () => [
@@ -55,7 +55,7 @@ export function MarkdownEditor({
     [paste],
   )
 
-  const html = useMemo(() => (mode === 'write' ? '' : renderMarkdown(value)), [value, mode])
+  const html = useMemo(() => (view === 'write' ? '' : renderMarkdown(value)), [value, view])
 
   return (
     <div
@@ -70,13 +70,13 @@ export function MarkdownEditor({
       {...handlers}
     >
       <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border bg-surface/60">
-        <ModeTab active={mode === 'write'} onClick={() => setMode('write')}>
+        <ModeTab active={view === 'write'} onClick={() => setView('write')}>
           编辑
         </ModeTab>
-        <ModeTab active={mode === 'split'} onClick={() => setMode('split')}>
+        <ModeTab active={view === 'split'} onClick={() => setView('split')}>
           分栏
         </ModeTab>
-        <ModeTab active={mode === 'preview'} onClick={() => setMode('preview')}>
+        <ModeTab active={view === 'preview'} onClick={() => setView('preview')}>
           预览
         </ModeTab>
 
@@ -87,10 +87,10 @@ export function MarkdownEditor({
       </div>
 
       <div className="flex flex-1 min-h-0" style={{ minHeight }}>
-        {mode !== 'preview' && (
+        {view !== 'preview' && (
           <div
             ref={pane.left}
-            className={cn('min-w-0 overflow-auto', mode === 'split' ? 'w-1/2' : 'w-full')}
+            className={cn('min-w-0 overflow-auto', view === 'split' ? 'w-1/2' : 'w-full')}
           >
             <CodeMirror
               value={value}
@@ -111,16 +111,16 @@ export function MarkdownEditor({
           </div>
         )}
 
-        {mode === 'split' && <div className="w-px bg-border shrink-0" />}
+        {view === 'split' && <div className="w-px bg-border shrink-0" />}
 
-        {mode !== 'write' && (
+        {view !== 'write' && (
           <div
             ref={pane.right}
             className={cn(
               // 字号行高交给 .prose-mycelia 自己定 —— 行网格的所有尺寸都从
               // 那一处推导，写在这里会变成第二个事实来源
               'min-w-0 overflow-auto px-4 py-3',
-              mode === 'split' ? 'w-1/2 bg-surface/30' : 'w-full',
+              view === 'split' ? 'w-1/2 bg-surface/30' : 'w-full',
             )}
           >
             {value.trim() ? (

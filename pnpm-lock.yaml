@@ -256,6 +256,9 @@ importers:
 
   packages/llm:
     dependencies:
+      '@mycelia/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@mycelia/shared':
         specifier: workspace:*
         version: link:../shared
@@ -290,6 +293,9 @@ importers:
       '@mycelia/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@mycelia/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@mycelia/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -67,8 +67,19 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   }
 })
 
+/**
+ * 剥掉开头的 front matter。
+ *
+ * 那几行是给机器读的元数据，不是正文。留着的话 Markdown 解析器会把
+ * `name: xxx` 上面那道 `---` 当成 setext 标题的下划线，于是元数据被渲染成
+ * 一大块加粗文字压在文章开头 —— 既难看又完全没用。
+ */
+function stripFrontMatter(source: string): string {
+  return source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+}
+
 export function renderMarkdown(source: string): string {
-  const html = marked.parse(source, { async: false })
+  const html = marked.parse(stripFrontMatter(source), { async: false })
   return DOMPurify.sanitize(html, {
     // KaTeX 输出大量 MathML 与带样式的 span，默认白名单会把它们剥光
     USE_PROFILES: { html: true, mathMl: true, svg: true },

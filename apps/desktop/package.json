@@ -13,7 +13,7 @@
     "package:win": "electron-vite build && electron-builder --win",
     "package:linux": "electron-vite build && electron-builder --linux",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "predev": "pnpm rebuild && node ../../scripts/dev-app-identity.mjs",
+    "predev": "pnpm rebuild && node ../../scripts/sign-native.mjs && node ../../scripts/dev-app-identity.mjs",
     "prepackage": "node ../../scripts/dev-app-identity.mjs --restore",
     "prepackage:mac": "node ../../scripts/dev-app-identity.mjs --restore",
     "prepackage:win": "node ../../scripts/dev-app-identity.mjs --restore",

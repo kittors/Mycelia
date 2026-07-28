@@ -1,5 +1,6 @@
 import type { LlmProviderConfig } from '@mycelia/shared'
 import { resolveApiKey } from '@mycelia/shared'
+import { guardEgress } from './guard.js'
 import {
   AnthropicProvider,
   NoopProvider,
@@ -9,7 +10,17 @@ import {
 } from './providers/index.js'
 import type { ChatOptions, LlmProvider } from './types.js'
 
+/**
+ * 建一个模型客户端。
+ *
+ * 一律裹上 guardEgress —— 出口只有这一个，凭据脱敏就放在这里，
+ * 调用方不需要知道有这回事，也就没法忘记。
+ */
 export function createLlm(config: LlmProviderConfig): LlmProvider {
+  return guardEgress(createRaw(config))
+}
+
+function createRaw(config: LlmProviderConfig): LlmProvider {
   const apiKey = resolveApiKey(config)
   const shared = {
     baseUrl: config.baseUrl,
@@ -51,6 +62,7 @@ export function fastOptions(config: LlmProviderConfig, opts: ChatOptions = {}): 
   return { ...opts, model: opts.model ?? config.fastModel ?? config.model }
 }
 
+export { guardEgress } from './guard.js'
 export * from './types.js'
 export { createVision, type VisionProvider } from './vision.js'
 export { AnthropicProvider, NoopProvider, OllamaProvider, OpenAIProvider, OpenAIResponsesProvider }

@@ -34,6 +34,15 @@ export function DocumentEditor({
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(Boolean(documentId))
   const [error, setError] = useState('')
+  /**
+   * 正本在磁盘上（挂载目录里的文件）。
+   *
+   * 这类文档照样能在这里改，只是保存走的是另一条路：写回那个文件、
+   * 再重新索引它。写进手记源是不行的 —— 磁盘上那份纹丝不动，
+   * 下次重新索引又把库里的改动盖回去。
+   */
+  const [onDisk, setOnDisk] = useState(false)
+  const [absPath, setAbsPath] = useState('')
 
   const draft = useMemo(() => ({ title, text }), [title, text])
   const { restored, dismiss } = useDraft(documentId, draft, !loading)
@@ -42,11 +51,13 @@ export function DocumentEditor({
     if (!documentId) return
     let alive = true
     void window.mycelia
-      .readNote(documentId)
-      .then((note) => {
-        if (!alive || !note) return
-        setTitle(note.document.title)
-        setText(note.text)
+      .readDocument(documentId)
+      .then((doc) => {
+        if (!alive || !doc) return
+        setTitle(doc.title)
+        setText(doc.text)
+        setAbsPath(doc.absPath)
+        setOnDisk(doc.onDisk)
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => {
@@ -61,16 +72,26 @@ export function DocumentEditor({
     setBusy(true)
     setError('')
     try {
-      const result = await window.mycelia.saveNote({
-        title: title.trim(),
-        text: text.trim(),
-        documentId,
-      })
-      app.toast(documentId ? '已更新' : `已入库，切成 ${result.chunkCount} 个片段`, 'success')
+      // 磁盘上有正本的，写回文件；否则存成手记
+      const result = onDisk
+        ? await window.mycelia.writeDocument(documentId as string, text)
+        : await window.mycelia.saveNote({
+            title: title.trim(),
+            text: text.trim(),
+            documentId,
+          })
+      app.toast(
+        onDisk
+          ? '已写回原文件并重新索引'
+          : documentId
+            ? '已更新'
+            : `已入库，切成 ${result.chunkCount} 个片段`,
+        'success',
+      )
       app.bump()
       // 已经落库了，草稿留着只会在下次打开时冒出来问要不要恢复
       clearDraft(documentId)
-      onSaved(result.documentId)
+      onSaved('documentId' in result ? String(result.documentId) : String(documentId))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -92,7 +113,7 @@ export function DocumentEditor({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const canSave = Boolean(title.trim() && text.trim()) && !busy && !loading
+  const canSave = Boolean(text.trim()) && (onDisk || Boolean(title.trim())) && !busy && !loading
   // 内容一致就不必问了 —— 那是上次入库后留下的同一份东西
   const offerRestore = restored && (restored.title !== title || restored.text !== text)
 
@@ -115,8 +136,18 @@ export function DocumentEditor({
           className="flex-1 min-w-0 h-8 px-2 bg-transparent text-[14px] font-medium outline-none placeholder:text-faint placeholder:font-normal"
         />
 
+        {onDisk && absPath && (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Icon name="external" size={13} />}
+            onClick={() => void window.mycelia.openPath(absPath)}
+          >
+            打开原文件
+          </Button>
+        )}
         <Button variant="primary" size="sm" disabled={!canSave} onClick={save}>
-          {busy ? (documentId ? '更新中…' : '入库中…') : documentId ? '保存' : '入库'}
+          {busy ? (documentId ? '保存中…' : '入库中…') : documentId ? '保存' : '入库'}
         </Button>
       </header>
 
@@ -157,7 +188,11 @@ export function DocumentEditor({
       </div>
 
       <footer className="flex items-center gap-3 px-4 py-2 shrink-0 border-t border-border text-[11px] text-faint">
-        <span>标题层级决定切分，写清楚层级检索会更准</span>
+        <span>
+          {onDisk
+            ? '保存会写回磁盘上那个文件，并重新索引'
+            : '标题层级决定切分，写清楚层级检索会更准'}
+        </span>
         <div className="flex-1" />
         <span>编辑内容随时留底，{documentId ? '保存' : '入库'}后才进检索</span>
       </footer>

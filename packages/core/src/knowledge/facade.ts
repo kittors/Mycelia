@@ -6,6 +6,7 @@
  */
 
 import { createHash } from 'node:crypto'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import type { Config } from '@mycelia/shared'
 import type { MyceliaStore, StoredDocument, StoredSource } from '@mycelia/store'
 import type { DocumentIndexer, IndexOptions, IndexResult } from './indexer.js'
@@ -115,7 +116,73 @@ export class KnowledgeLibrary {
     return { documentId: saved.id, chunkCount: result.chunkCount }
   }
 
-  /** 读回手记原文，供编辑。文件类文档不走这里 —— 它们的事实来源是磁盘 */
+  /**
+   * 读一篇文档的正文，供编辑。
+   *
+   * 挂载目录的文档直接读磁盘 —— 库里存的是切过的块，拼回来跟原文并不相等
+   * （块之间用空行硬连、一级标题被剥掉过），拿它当原文保存会把用户的文件毁掉。
+   * 手记没有磁盘正本，只能从块拼回来，那也是它唯一的形态。
+   */
+  async documentText(documentId: string): Promise<
+    | {
+        document: StoredDocument
+        text: string
+        /** true 表示正本在磁盘上，保存要写回文件并重新索引 */
+        onDisk: boolean
+      }
+    | undefined
+  > {
+    const document = this.store.documents.get(documentId)
+    if (!document) return undefined
+
+    const source = this.store.sources.get(document.sourceId)
+    const onDisk = Boolean(source && source.path !== NOTES_SOURCE_PATH)
+    if (!onDisk) {
+      const note = this.noteText(documentId)
+      return note ? { ...note, onDisk: false } : undefined
+    }
+
+    try {
+      return { document, text: await readFile(document.absPath, 'utf8'), onDisk: true }
+    } catch {
+      // 文件被删或没权限：退回块拼接，至少还能看
+      const note = this.noteText(documentId)
+      return note ? { ...note, onDisk: true } : undefined
+    }
+  }
+
+  /**
+   * 把改动写回磁盘上的原文件，然后重新索引它。
+   *
+   * 只重索引这一个文件而不是整个目录：目录里可能有几千篇，为改一行等上
+   * 半分钟是没道理的。
+   */
+  async writeDocument(documentId: string, text: string): Promise<{ chunkCount: number }> {
+    const document = this.store.documents.get(documentId)
+    if (!document) throw new Error('文档不存在')
+    const source = this.store.sources.get(document.sourceId)
+    if (!source || source.path === NOTES_SOURCE_PATH) {
+      throw new Error('这篇没有磁盘正本，请用 saveNote')
+    }
+
+    await writeFile(document.absPath, text, 'utf8')
+    const stats = await stat(document.absPath)
+    const result = await this.indexer.ingestText(
+      source,
+      {
+        relPath: document.relPath,
+        absPath: document.absPath,
+        sizeBytes: stats.size,
+        mtime: stats.mtimeMs,
+      },
+      text,
+      { force: true },
+    )
+    this.store.sources.refreshCounts(source.id)
+    return { chunkCount: result.chunkCount }
+  }
+
+  /** 读回手记原文。文件类文档不走这里 —— 它们的事实来源是磁盘 */
   noteText(documentId: string): { document: StoredDocument; text: string } | undefined {
     const document = this.store.documents.get(documentId)
     if (!document) return undefined

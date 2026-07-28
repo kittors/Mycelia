@@ -39,6 +39,7 @@ const api: MyceliaApi = {
   cancelIndex: () => invoke('cancelIndex'),
   listDocuments: (sourceId) => invoke('listDocuments', sourceId),
   readDocument: (documentId) => invoke('readDocument', documentId),
+  writeDocument: (documentId, text) => invoke('writeDocument', documentId, text),
   listTags: () => invoke('listTags'),
   saveImage: (input) => invoke('saveImage', input),
   describeImage: (input) => invoke('describeImage', input),

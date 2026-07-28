@@ -19,7 +19,7 @@ import { extname } from 'node:path'
 import type { Embedder } from '@mycelia/embed'
 import { createVision, type LlmProvider, type VisionProvider } from '@mycelia/llm'
 import type { Config } from '@mycelia/shared'
-import { createLogger, mapLimit } from '@mycelia/shared'
+import { createLogger, MyceliaError, mapLimit } from '@mycelia/shared'
 import type { MyceliaStore, StoredSource } from '@mycelia/store'
 import { chunkDocument } from './chunk/index.js'
 import {
@@ -210,7 +210,12 @@ export class DocumentIndexer {
   ): Promise<{ skipped: boolean; chunkCount: number; contextualized: number }> {
     const contentHash = meta.contentHash ?? createHash('sha256').update(raw).digest('hex')
     const knowledge = this.config.knowledge
-    const chunks = chunkDocument(raw, {
+
+    // 库里存的就是原文 —— 与磁盘上那份完全一致。脱敏发生在出口：
+    // 发给模型、交给 agent 之前（见 llm 层与 mcp 层）
+    const text = raw
+
+    const chunks = chunkDocument(text, {
       chunkSize: knowledge.chunkSize,
       chunkOverlap: knowledge.chunkOverlap,
     })
@@ -219,16 +224,16 @@ export class DocumentIndexer {
     }
 
     const file = { relPath: meta.relPath, absPath: meta.absPath }
-    const title = meta.title?.trim() || extractTitle(raw, meta.relPath)
+    const title = meta.title?.trim() || extractTitle(text, meta.relPath)
 
     // 只有结构撑不住分块粒度的文档才值得花模型调用。
     // 一份标题层级完整的文档，靠标题路径定位已经足够。
-    const useLlmContext = this.llm.enabled && needsSemanticContext(raw, chunks.length)
+    const useLlmContext = this.llm.enabled && needsSemanticContext(text, chunks.length)
     const docContext = useLlmContext
       ? await summarizeDocument(this.llm, this.config.llm, {
           title,
-          text: raw,
-          headings: collectHeadings(raw),
+          text,
+          headings: collectHeadings(text),
         })
       : { title, summary: '' }
 
