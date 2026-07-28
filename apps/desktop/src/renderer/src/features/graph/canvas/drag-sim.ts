@@ -159,7 +159,14 @@ export function startDragSimulation(
   let alpha = ALPHA_DRAG
   let alphaTarget = ALPHA_DRAG
   let raf = 0
-  let running = true
+  /**
+   * 循环是否在跑。
+   *
+   * 初值是 false：按下时不点火（那会让整张图被施力重排），要等第一次
+   * moveTo 才开始。写成 true 的话 moveTo 里的点火分支永远进不去，
+   * 循环从头到尾没跑过 —— 表现就是拖拽完全失效。
+   */
+  let running = false
   let frames = 0
 
   const tick = () => {
